@@ -2,86 +2,120 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MicroMoon Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MicroMoon Factory</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #game-container { border: 4px solid #ff7f24; }
+        body { margin: 0; padding: 0; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { border: 4px solid #ff7f24; border-radius: 8px; max-width: 100%; max-height: 100%; }
     </style>
 </head>
 <body>
-    <div id="game-container"></div>
     <script>
         const config = {
             type: Phaser.AUTO,
             width: 800,
             height: 600,
-            parent: 'game-container',
-            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            backgroundColor: '#222222',
+            physics: {
+                default: 'arcade',
+                arcade: { gravity: { y: 0 }, debug: false }
+            },
             scene: { create: create, update: update }
         };
 
         const game = new Phaser.Game(config);
         let player, cursors, planks, workbench, scoreText, messageText;
-        let score = 0, carriesPlank = false;
+        let score = 0;
+        let carriesPlank = false;
 
         function create() {
+            // Сетка завода
             this.add.grid(400, 300, 800, 600, 40, 40, 0x222222).setOutlineStyle(0x333333);
+
+            // СОЗДАЕМ МУНА
             player = this.add.container(400, 300);
-            let pants = this.add.rectangle(0, 16, 34, 26, 0x000000); 
-            let shirtBase = this.add.rectangle(0, -10, 32, 32, 0xffffff);
+            
+            let pants = this.add.rectangle(0, 16, 34, 26, 0x000000); // Джоггеры
+            let shirtBase = this.add.rectangle(0, -10, 32, 32, 0xffffff); // Тельняшка
             let s1 = this.add.rectangle(0, -18, 32, 4, 0x0000ff);
             let s2 = this.add.rectangle(0, -10, 32, 4, 0x0000ff);
             let s3 = this.add.rectangle(0, -2, 32, 4, 0x0000ff);
-            let head = this.add.rectangle(0, -35, 24, 24, 0xffdbac);
-            let hair = this.add.rectangle(0, -48, 28, 20, 0xd2691e); 
+            let head = this.add.rectangle(0, -35, 24, 24, 0xffdbac); // Лицо
+            let hair = this.add.rectangle(0, -48, 28, 20, 0xd2691e); // Рыжая прическа
+            
             player.add([pants, shirtBase, s1, s2, s3, head, hair]);
             this.physics.add.existing(player);
             player.body.setCollideWorldBounds(true);
+            player.body.setSize(40, 40);
 
-            workbench = this.add.rectangle(720, 300, 100, 180, 0x4e342e);
+            // ВЕРСТАК
+            workbench = this.add.rectangle(720, 300, 100, 200, 0x4e342e);
             this.physics.add.existing(workbench, true);
-            this.add.text(675, 290, 'ВЕРСТАК', { fontSize: '14px', color: '#fff' });
+            this.add.text(675, 290, 'ВЕРСТАК', { fontSize: '14px', color: '#fff', fontStyle: 'bold' });
 
+            // ДОСКИ
             planks = this.physics.add.group();
-            spawnPlank();
+            spawnPlank(this);
 
-            scoreText = this.add.text(20, 20, 'ПЛАН: 0/5', { fontSize: '28px', fill: '#ff7f24' });
-            messageText = this.add.text(20, 560, 'Мун, тащи доску!', { fontSize: '18px', fill: '#fff' });
-            cursors = this.input.keyboard.createCursorKeys();
+            // ТЕКСТ
+            scoreText = this.add.text(20, 20, 'ДОСОК: 0/5', { fontSize: '32px', fill: '#ff7f24', fontStyle: 'bold' });
+            messageText = this.add.text(20, 560, 'ТЫКАЙ В ЭКРАН, ЧТОБЫ ИДТИ', { fontSize: '18px', fill: '#ffffff' });
 
+            // КОЛЛИЗИИ
             this.physics.add.overlap(player, planks, (p, pl) => {
                 if (!carriesPlank) {
                     carriesPlank = true;
-                    pl.visual.destroy(); pl.destroy();
-                    let h = game.scene.scenes[0].add.rectangle(0, -10, 40, 10, 0xffa726);
-                    h.setName('hp'); player.add(h);
+                    pl.visual.destroy();
+                    pl.destroy();
+                    let h = this.add.rectangle(0, -10, 45, 12, 0xffa726);
+                    h.setName('held');
+                    player.add(h);
+                    messageText.setText('ТАЩИ НА ВЕРСТАК!');
                 }
-            });
+            }, null, this);
+
             this.physics.add.overlap(player, workbench, () => {
                 if (carriesPlank) {
-                    carriesPlank = false; score++;
-                    scoreText.setText('ПЛАН: ' + score + '/5');
-                    let h = player.getByName('hp'); if (h) h.destroy();
-                    if (score < 5) spawnPlank();
-                    else messageText.setText('СМЕНА ОКОНЧЕНА!');
+                    carriesPlank = false;
+                    score++;
+                    scoreText.setText('ДОСОК: ' + score + '/5');
+                    let h = player.getByName('held');
+                    if (h) h.destroy();
+                    if (score < 5) {
+                        spawnPlank(this);
+                        messageText.setText('ХОРОШ! ИЩИ ЕЩЕ!');
+                    } else {
+                        messageText.setText('СМЕНА ОКОНЧЕНА! КРАСАВА, МУН!');
+                        player.setScale(1.5); // Мун радуется!
+                    }
                 }
-            });
+            }, null, this);
+
+            cursors = this.input.keyboard.createCursorKeys();
         }
 
         function update() {
             player.body.setVelocity(0);
-            if (cursors.left.isDown) player.body.setVelocityX(-280);
-            else if (cursors.right.isDown) player.body.setVelocityX(280);
-            if (cursors.up.isDown) player.body.setVelocityY(-280);
-            else if (cursors.down.isDown) player.body.setVelocityY(280);
+
+            // Управление для ПК (Стрелки)
+            if (cursors.left.isDown) player.body.setVelocityX(-300);
+            else if (cursors.right.isDown) player.body.setVelocityX(300);
+            if (cursors.up.isDown) player.body.setVelocityY(-300);
+            else if (cursors.down.isDown) player.body.setVelocityY(300);
+
+            // Управление для ТЕЛЕФОНА (Тап)
+            if (this.input.activePointer.isDown) {
+                this.physics.moveToObject(player, this.input.activePointer, 300);
+            }
         }
 
-        function spawnPlank() {
-            let x = Phaser.Math.Between(150, 600), y = Phaser.Math.Between(100, 500);
-            let p = planks.create(x, y, null); p.setAlpha(0);
-            p.visual = game.scene.scenes[0].add.rectangle(x, y, 45, 18, 0xffa726);
+        function spawnPlank(scene) {
+            let x = Phaser.Math.Between(100, 600);
+            let y = Phaser.Math.Between(100, 500);
+            let p = planks.create(x, y, null);
+            p.setAlpha(0);
+            p.visual = scene.add.rectangle(x, y, 45, 18, 0xffa726);
         }
     </script>
 </body>
