@@ -1,61 +1,87 @@
-this.physics.add.overlap(player, workbench, deliverPlank, null, this);
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroMoon Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-container { border: 4px solid #ff7f24; }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            scene: { create: create, update: update }
+        };
+
+        const game = new Phaser.Game(config);
+        let player, cursors, planks, workbench, scoreText, messageText;
+        let score = 0, carriesPlank = false;
+
+        function create() {
+            this.add.grid(400, 300, 800, 600, 40, 40, 0x222222).setOutlineStyle(0x333333);
+            player = this.add.container(400, 300);
+            let pants = this.add.rectangle(0, 16, 34, 26, 0x000000); 
+            let shirtBase = this.add.rectangle(0, -10, 32, 32, 0xffffff);
+            let s1 = this.add.rectangle(0, -18, 32, 4, 0x0000ff);
+            let s2 = this.add.rectangle(0, -10, 32, 4, 0x0000ff);
+            let s3 = this.add.rectangle(0, -2, 32, 4, 0x0000ff);
+            let head = this.add.rectangle(0, -35, 24, 24, 0xffdbac);
+            let hair = this.add.rectangle(0, -48, 28, 20, 0xd2691e); 
+            player.add([pants, shirtBase, s1, s2, s3, head, hair]);
+            this.physics.add.existing(player);
+            player.body.setCollideWorldBounds(true);
+
+            workbench = this.add.rectangle(720, 300, 100, 180, 0x4e342e);
+            this.physics.add.existing(workbench, true);
+            this.add.text(675, 290, 'ВЕРСТАК', { fontSize: '14px', color: '#fff' });
+
+            planks = this.physics.add.group();
+            spawnPlank();
+
+            scoreText = this.add.text(20, 20, 'ПЛАН: 0/5', { fontSize: '28px', fill: '#ff7f24' });
+            messageText = this.add.text(20, 560, 'Мун, тащи доску!', { fontSize: '18px', fill: '#fff' });
+            cursors = this.input.keyboard.createCursorKeys();
+
+            this.physics.add.overlap(player, planks, (p, pl) => {
+                if (!carriesPlank) {
+                    carriesPlank = true;
+                    pl.visual.destroy(); pl.destroy();
+                    let h = game.scene.scenes[0].add.rectangle(0, -10, 40, 10, 0xffa726);
+                    h.setName('hp'); player.add(h);
+                }
+            });
+            this.physics.add.overlap(player, workbench, () => {
+                if (carriesPlank) {
+                    carriesPlank = false; score++;
+                    scoreText.setText('ПЛАН: ' + score + '/5');
+                    let h = player.getByName('hp'); if (h) h.destroy();
+                    if (score < 5) spawnPlank();
+                    else messageText.setText('СМЕНА ОКОНЧЕНА!');
+                }
+            });
         }
 
         function update() {
             player.body.setVelocity(0);
-
-            // Увеличил скорость, рыжий Мун быстрее бегает!
             if (cursors.left.isDown) player.body.setVelocityX(-280);
             else if (cursors.right.isDown) player.body.setVelocityX(280);
-
             if (cursors.up.isDown) player.body.setVelocityY(-280);
             else if (cursors.down.isDown) player.body.setVelocityY(280);
-
-            if (carriesPlank) {
-                messageText.setText('КРАСАВА! ТАЩИ НА ВЕРСТАК!');
-            }
         }
 
         function spawnPlank() {
-            let x = Phaser.Math.Between(150, 600);
-            let y = Phaser.Math.Between(100, 500);
-            let p = planks.create(x, y, null);
-            p.setAlpha(0); // Скрываем невидимый спрайт
-            let visualPlank = game.scene.scenes[0].add.rectangle(x, y, 45, 18, 0xffa726); // Доска
-            p.visual = visualPlank;
-        }
-
-        function collectPlank(player, plank) {
-            if (!carriesPlank) {
-                carriesPlank = true;
-                plank.visual.destroy(); // Убираем доску с пола
-                plank.destroy();
-                // Добавляем доску в руки Муна (визуально)
-                let holdingPlank = game.scene.scenes[0].add.rectangle(0, -10, 40, 10, 0xffa726);
-                holdingPlank.setName('heldPlank');
-                player.add(holdingPlank);
-            }
-        }
-
-        function deliverPlank() {
-            if (carriesPlank) {
-                carriesPlank = false;
-                score++;
-                scoreText.setText('ПЛАН: ' + score + '/5');
-                
-                // Убираем доску из рук
-                let held = player.getByName('heldPlank');
-                if (held) held.destroy();
-
-                if (score >= 5) {
-                    messageText.setText('СМЕНА СДАНА! ИДИ ОТДЫХАЙ, БРАТУХА!');
-                    scoreText.setFill('#00ff00');
-                    player.body.enable = false;
-                } else {
-                    messageText.setText('ХОРОШ! ИЩИ ЕЩЕ ОДНУ!');
-                    spawnPlank();
-                }
-            }
+            let x = Phaser.Math.Between(150, 600), y = Phaser.Math.Between(100, 500);
+            let p = planks.create(x, y, null); p.setAlpha(0);
+            p.visual = game.scene.scenes[0].add.rectangle(x, y, 45, 18, 0xffa726);
         }
     </script>
 </body>
