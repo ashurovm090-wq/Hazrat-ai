@@ -1,0 +1,62 @@
+this.physics.add.overlap(player, workbench, deliverPlank, null, this);
+        }
+
+        function update() {
+            player.body.setVelocity(0);
+
+            // Увеличил скорость, рыжий Мун быстрее бегает!
+            if (cursors.left.isDown) player.body.setVelocityX(-280);
+            else if (cursors.right.isDown) player.body.setVelocityX(280);
+
+            if (cursors.up.isDown) player.body.setVelocityY(-280);
+            else if (cursors.down.isDown) player.body.setVelocityY(280);
+
+            if (carriesPlank) {
+                messageText.setText('КРАСАВА! ТАЩИ НА ВЕРСТАК!');
+            }
+        }
+
+        function spawnPlank() {
+            let x = Phaser.Math.Between(150, 600);
+            let y = Phaser.Math.Between(100, 500);
+            let p = planks.create(x, y, null);
+            p.setAlpha(0); // Скрываем невидимый спрайт
+            let visualPlank = game.scene.scenes[0].add.rectangle(x, y, 45, 18, 0xffa726); // Доска
+            p.visual = visualPlank;
+        }
+
+        function collectPlank(player, plank) {
+            if (!carriesPlank) {
+                carriesPlank = true;
+                plank.visual.destroy(); // Убираем доску с пола
+                plank.destroy();
+                // Добавляем доску в руки Муна (визуально)
+                let holdingPlank = game.scene.scenes[0].add.rectangle(0, -10, 40, 10, 0xffa726);
+                holdingPlank.setName('heldPlank');
+                player.add(holdingPlank);
+            }
+        }
+
+        function deliverPlank() {
+            if (carriesPlank) {
+                carriesPlank = false;
+                score++;
+                scoreText.setText('ПЛАН: ' + score + '/5');
+                
+                // Убираем доску из рук
+                let held = player.getByName('heldPlank');
+                if (held) held.destroy();
+
+                if (score >= 5) {
+                    messageText.setText('СМЕНА СДАНА! ИДИ ОТДЫХАЙ, БРАТУХА!');
+                    scoreText.setFill('#00ff00');
+                    player.body.enable = false;
+                } else {
+                    messageText.setText('ХОРОШ! ИЩИ ЕЩЕ ОДНУ!');
+                    spawnPlank();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
