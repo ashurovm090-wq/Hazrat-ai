@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MicroMoon: Factory Rooms</title>
+    <title>MicroMoon: Factory Rooms Fix</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background-color: #000; overflow: hidden; touch-action: none; }
+        canvas { display: block; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -14,148 +15,139 @@
         const config = {
             type: Phaser.AUTO,
             scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
-            physics: { default: 'arcade' },
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
             scene: { create: create, update: update }
         };
 
         const game = new Phaser.Game(config);
-        let player, messageText, currentRoom = 1;
-        let status = "START"; 
-        let zones = {};
+        let player, messageText, floor, currentRoom = 1, status = "START";
+        let interactiveObjects, exitArrow;
 
         function create() {
-            createRoom(this, 1); // Начинаем в первой комнате
+            // ФОН (Пол)
+            floor = this.add.rectangle(400, 300, 800, 600, 0x5d4037);
+            this.add.grid(400, 300, 800, 600, 80, 80, 0x000000, 0.1);
 
-            // МУН (Рыжий, тельняшка)
+            // МУН (Рыжий в тельняшке)
             player = this.add.container(400, 300);
-            player.add([
-                this.add.rectangle(0, 15, 30, 25, 0x212121), // штаны
-                this.add.rectangle(0, -10, 32, 32, 0xffffff), // тельняшка
-                this.add.rectangle(0, -18, 32, 4, 0x1a237e), // полоски
-                this.add.rectangle(0, -10, 32, 4, 0x1a237e),
-                this.add.rectangle(0, -2, 32, 4, 0x1a237e),
-                this.add.rectangle(0, -35, 24, 25, 0xffccbc), // лицо
-                this.add.rectangle(0, -50, 32, 20, 0xe64a19)  // рыжие волосы
-            ]);
+            let pBody = this.add.rectangle(0, 0, 32, 50, 0xffffff); // Тело
+            let s1 = this.add.rectangle(0, -8, 32, 4, 0x1a237e); // Полоски
+            let s2 = this.add.rectangle(0, 0, 32, 4, 0x1a237e);
+            let s3 = this.add.rectangle(0, 8, 32, 4, 0x1a237e);
+            let head = this.add.rectangle(0, -35, 24, 24, 0xffccbc); // Лицо
+            let hair = this.add.rectangle(0, -48, 32, 18, 0xe64a19); // Рыжие волосы
+            let pants = this.add.rectangle(0, 25, 32, 15, 0x212121); // Штаны
+            player.add([pBody, s1, s2, s3, head, hair, pants]);
+            
             this.physics.add.existing(player);
             player.body.setCollideWorldBounds(true);
 
-            messageText = this.add.text(400, 30, 'ЦЕХ 1: СКЛАД. ВОЗЬМИ ЛИСТ ДСП!', { 
-                fontSize: '20px', fill: '#fff', backgroundColor: '#000', padding: 5 
+            // Группа для объектов комнаты
+            interactiveObjects = this.add.group();
+            exitArrow = this.add.text(720, 280, 'В ЦЕХ 2 ➔', { fontSize: '20px', fill: '#0f0' }).setVisible(false);
+
+            messageText = this.add.text(400, 40, '', { 
+                fontSize: '22px', fill: '#fff', backgroundColor: '#000', padding: 8 
             }).setOrigin(0.5);
+
+            setupRoom(this, 1);
         }
 
-        function createRoom(scene, roomNumber) {
-            // Очистка старых зон
-            if (zones.group) zones.group.clear(true, true);
-            zones.group = scene.physics.add.staticGroup();
+        function setupRoom(scene, room) {
+            currentRoom = room;
+            interactiveObjects.clear(true, true);
+            exitArrow.setVisible(false);
 
-            if (roomNumber === 1) {
-                scene.add.rectangle(400, 300, 800, 600, 0x5d4037); // Цвет пола
-                let dsp = scene.add.rectangle(100, 300, 120, 160, 0xffa726).setStrokeStyle(2, 0xffffff);
-                scene.add.text(100, 300, "ЛИСТЫ ДСП", {color: '#000'}).setOrigin(0.5);
-                let trigger = scene.physics.add.staticSprite(100, 300).setSize(120, 160);
+            if (room === 1) {
+                floor.setFillStyle(0x5d4037);
+                messageText.setText("ЦЕХ 1: СКЛАД. ВОЗЬМИ ДСП!");
+                let dsp = scene.add.rectangle(150, 300, 100, 140, 0xffa726).setStrokeStyle(3, 0xffffff);
+                scene.add.text(150, 300, "ДСП", {color: '#000'}).setOrigin(0.5);
+                interactiveObjects.add(dsp);
                 
-                scene.physics.add.overlap(player, trigger, () => {
+                scene.physics.add.existing(dsp, true);
+                scene.physics.add.overlap(player, dsp, () => {
                     if (status === "START") {
                         status = "HAS_DSP";
-                        updateItemVisual(0xffa726);
-                        messageText.setText("ЛИСТ ВЗЯТ! ИДИ В ЦЕХ РАСПИЛА (НАПРАВО)");
+                        updateCargo(0xffa726);
+                        messageText.setText("ДСП У МУНА! ИДИ В ЦЕХ 2 (НАПРАВО)");
+                        exitArrow.setVisible(true).setText("В ЦЕХ 2 ➔").setX(700);
                     }
-                });
-
-                // Переход в комнату 2
-                let door = scene.add.rectangle(780, 300, 40, 150, 0x000, 0.5);
-                scene.add.text(760, 220, "В ЦЕХ 2", {fontSize: '12px'});
-                let doorTrigger = scene.physics.add.staticSprite(780, 300).setSize(40, 150);
-                scene.physics.add.overlap(player, doorTrigger, () => {
-                    if (status !== "START") changeRoom(scene, 2, 60, 300);
                 });
             } 
-            
-            else if (roomNumber === 2) {
-                scene.add.rectangle(400, 300, 800, 600, 0x455a64); // Другой пол
+            else if (room === 2) {
+                floor.setFillStyle(0x455a64);
                 messageText.setText("ЦЕХ 2: РАСПИЛ И КРОМКА");
                 
-                let cpu = scene.add.rectangle(400, 150, 150, 100, 0x212121).setStrokeStyle(2, 0x0f0);
-                scene.add.text(400, 150, "ЧПУ РОБОТ", {color: '#fff'}).setOrigin(0.5);
-                let cpuTrigger = scene.physics.add.staticSprite(400, 150).setSize(150, 100);
+                let cpu = scene.add.rectangle(400, 150, 140, 90, 0x212121).setStrokeStyle(2, 0x0f0);
+                scene.add.text(400, 150, "ЧПУ РОБОТ", {fontSize: '14px'});
+                
+                let kroma = scene.add.rectangle(400, 450, 140, 90, 0x37474f).setStrokeStyle(2, 0x0ff);
+                scene.add.text(400, 450, "КРОМКА", {fontSize: '14px'});
 
-                let kroma = scene.add.rectangle(400, 450, 150, 100, 0x37474f).setStrokeStyle(2, 0x0ff);
-                scene.add.text(400, 450, "КРОМКА", {color: '#fff'}).setOrigin(0.5);
-                let kromaTrigger = scene.physics.add.staticSprite(400, 450).setSize(150, 100);
+                scene.physics.add.existing(cpu, true);
+                scene.physics.add.existing(kroma, true);
 
-                scene.physics.add.overlap(player, cpuTrigger, () => {
+                scene.physics.add.overlap(player, cpu, () => {
                     if (status === "HAS_DSP") {
                         status = "CPU_DONE";
-                        updateItemVisual(0x8d6e63);
-                        messageText.setText("РАСПИЛЕНО! ТЕПЕРЬ НА КРОМКУ (ВНИЗУ)");
+                        updateCargo(0x8d6e63);
+                        messageText.setText("РАСПИЛЕНО! ТЕПЕРЬ НА КРОМКУ");
                     }
                 });
 
-                scene.physics.add.overlap(player, kromaTrigger, () => {
+                scene.physics.add.overlap(player, kroma, () => {
                     if (status === "CPU_DONE") {
                         status = "KROMKA_DONE";
-                        messageText.setText("КРОМКА ГОТОВА! ИДИ В ЦЕХ УПАКОВКИ (НАПРАВО)");
+                        messageText.setText("ГОТОВО! ИДИ В ЦЕХ 3 (НАПРАВО)");
+                        exitArrow.setVisible(true).setText("В ЦЕХ 3 ➔").setX(700);
                     }
                 });
-
-                let door = scene.add.rectangle(780, 300, 40, 150, 0x000, 0.5);
-                let doorTrigger = scene.physics.add.staticSprite(780, 300).setSize(40, 150);
-                scene.physics.add.overlap(player, doorTrigger, () => {
-                    if (status === "KROMKA_DONE") changeRoom(scene, 3, 60, 300);
-                });
             }
-
-            else if (roomNumber === 3) {
-                scene.add.rectangle(400, 300, 800, 600, 0x2e7d32);
-                messageText.setText("ЦЕХ 3: УПАКОВКА");
-
-                let pack = scene.add.rectangle(400, 300, 120, 120, 0xffffff, 0.8).setStrokeStyle(4, 0x000);
+            else if (room === 3) {
+                floor.setFillStyle(0x1b5e20);
+                messageText.setText("ЦЕХ 3: УПАКОВКА И ВЫХОД");
+                
+                let pack = scene.add.rectangle(400, 300, 120, 120, 0xffffff).setAlpha(0.8);
                 scene.add.text(400, 300, "СТРЕЙЧ", {color: '#000'}).setOrigin(0.5);
-                let packTrigger = scene.physics.add.staticSprite(400, 300).setSize(120, 120);
+                scene.physics.add.existing(pack, true);
 
-                scene.physics.add.overlap(player, packTrigger, () => {
+                scene.physics.add.overlap(player, pack, () => {
                     if (status === "KROMKA_DONE") {
                         status = "PACKED";
-                        updateItemVisual(0xeeeeee);
-                        messageText.setText("ЗАПАКОВАНО! НЕСИ К ВЫХОДУ (ВНИЗУ)");
-                    }
-                });
-
-                let exit = scene.add.rectangle(400, 580, 200, 40, 0x000);
-                let exitTrigger = scene.physics.add.staticSprite(400, 580).setSize(200, 40);
-                scene.physics.add.overlap(player, exitTrigger, () => {
-                    if (status === "PACKED") {
-                        status = "FINISH";
-                        messageText.setText("МУН, ТЫ ЛУЧШИЙ! ПЛАН ВЫПОЛНЕН!");
-                        scene.add.text(400, 200, "ЗАРПЛАТА ПРИШЛА!", {fontSize: '40px', fill: '#ff0'}).setOrigin(0.5);
+                        updateCargo(0xdddddd);
+                        messageText.setText("ЗАПАКОВАНО! НЕСИ К ВЫХОДУ (ВНИЗ)");
+                        exitArrow.setVisible(true).setText("ВЫХОД ⬇").setX(350).setY(550);
                     }
                 });
             }
         }
 
-        function changeRoom(scene, nextRoom, startX, startY) {
-            scene.cameras.main.fadeOut(300, 0, 0, 0);
-            scene.cameras.main.once('camerafadeoutcomplete', () => {
-                scene.add.rectangle(400, 300, 800, 600, 0x000); // Очистка визуала
-                player.setPosition(startX, startY);
-                createRoom(scene, nextRoom);
-                scene.cameras.main.fadeIn(300, 0, 0, 0);
-            });
-        }
-
-        function updateItemVisual(color) {
-            player.getByName('item')?.destroy();
-            let item = game.scene.scenes[0].add.rectangle(0, -15, 60, 40, color, 0.9).setName('item');
-            player.add(item);
+        function updateCargo(color) {
+            player.getByName('cargo')?.destroy();
+            let cargo = game.scene.scenes[0].add.rectangle(0, 0, 40, 25, color).setName('cargo').setAlpha(0.8);
+            player.add(cargo);
         }
 
         function update() {
-            if (this.input.activePointer.isDown && status !== "FINISH") {
-                this.physics.moveToObject(player, this.input.activePointer, 320);
+            if (this.input.activePointer.isDown) {
+                this.physics.moveToObject(player, this.input.activePointer, 300);
             } else {
                 player.body.setVelocity(0);
+            }
+
+            // Логика перехода комнат (по координатам)
+            if (player.x > 770 && exitArrow.visible) {
+                if (currentRoom < 3) {
+                    player.x = 50; 
+                    setupRoom(this, currentRoom + 1);
+                }
+            }
+            if (player.y > 550 && status === "PACKED" && currentRoom === 3) {
+                status = "FINISH";
+                messageText.setText("КРАСАВА! ПЛАН ВЫПОЛНЕН!");
+                this.add.text(400, 300, "ЗАРПЛАТА 100.000₽", {fontSize: '50px', fill: '#f0f', backgroundColor: '#000'}).setOrigin(0.5);
+                this.physics.pause();
             }
         }
     </script>
