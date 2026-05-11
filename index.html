@@ -2,146 +2,161 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>MicroMoon: Factory Tycoon</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MicroMoon: Factory Rooms</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        canvas { border: 6px solid #3e2723; border-radius: 10px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        body { margin: 0; padding: 0; background-color: #000; overflow: hidden; touch-action: none; }
     </style>
 </head>
 <body>
     <script>
         const config = {
             type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
+            physics: { default: 'arcade' },
             scene: { create: create, update: update }
         };
 
         const game = new Phaser.Game(config);
-        let player, planks, workbench, scoreText, timeText, shiftText;
-        let score = 0, carriesPlank = false, startTime;
+        let player, messageText, currentRoom = 1;
+        let status = "START"; 
+        let zones = {};
 
         function create() {
-            startTime = this.time.now;
+            createRoom(this, 1); // Начинаем в первой комнате
+
+            // МУН (Рыжий, тельняшка)
+            player = this.add.container(400, 300);
+            player.add([
+                this.add.rectangle(0, 15, 30, 25, 0x212121), // штаны
+                this.add.rectangle(0, -10, 32, 32, 0xffffff), // тельняшка
+                this.add.rectangle(0, -18, 32, 4, 0x1a237e), // полоски
+                this.add.rectangle(0, -10, 32, 4, 0x1a237e),
+                this.add.rectangle(0, -2, 32, 4, 0x1a237e),
+                this.add.rectangle(0, -35, 24, 25, 0xffccbc), // лицо
+                this.add.rectangle(0, -50, 32, 20, 0xe64a19)  // рыжие волосы
+            ]);
+            this.physics.add.existing(player);
+            player.body.setCollideWorldBounds(true);
+
+            messageText = this.add.text(400, 30, 'ЦЕХ 1: СКЛАД. ВОЗЬМИ ЛИСТ ДСП!', { 
+                fontSize: '20px', fill: '#fff', backgroundColor: '#000', padding: 5 
+            }).setOrigin(0.5);
+        }
+
+        function createRoom(scene, roomNumber) {
+            // Очистка старых зон
+            if (zones.group) zones.group.clear(true, true);
+            zones.group = scene.physics.add.staticGroup();
+
+            if (roomNumber === 1) {
+                scene.add.rectangle(400, 300, 800, 600, 0x5d4037); // Цвет пола
+                let dsp = scene.add.rectangle(100, 300, 120, 160, 0xffa726).setStrokeStyle(2, 0xffffff);
+                scene.add.text(100, 300, "ЛИСТЫ ДСП", {color: '#000'}).setOrigin(0.5);
+                let trigger = scene.physics.add.staticSprite(100, 300).setSize(120, 160);
+                
+                scene.physics.add.overlap(player, trigger, () => {
+                    if (status === "START") {
+                        status = "HAS_DSP";
+                        updateItemVisual(0xffa726);
+                        messageText.setText("ЛИСТ ВЗЯТ! ИДИ В ЦЕХ РАСПИЛА (НАПРАВО)");
+                    }
+                });
+
+                // Переход в комнату 2
+                let door = scene.add.rectangle(780, 300, 40, 150, 0x000, 0.5);
+                scene.add.text(760, 220, "В ЦЕХ 2", {fontSize: '12px'});
+                let doorTrigger = scene.physics.add.staticSprite(780, 300).setSize(40, 150);
+                scene.physics.add.overlap(player, doorTrigger, () => {
+                    if (status !== "START") changeRoom(scene, 2, 60, 300);
+                });
+            } 
             
-            // 1. ФОН (ПОЛ ЗАВОДА)
-            this.add.rectangle(400, 300, 800, 600, 0x8d6e63); // Коричневый бетон
-            for (let i = 0; i < 800; i += 80) {
-                for (let j = 0; j < 600; j += 80) {
-                    this.add.rectangle(i, j, 78, 78, 0x795548, 0.5).setOrigin(0);
-                }
+            else if (roomNumber === 2) {
+                scene.add.rectangle(400, 300, 800, 600, 0x455a64); // Другой пол
+                messageText.setText("ЦЕХ 2: РАСПИЛ И КРОМКА");
+                
+                let cpu = scene.add.rectangle(400, 150, 150, 100, 0x212121).setStrokeStyle(2, 0x0f0);
+                scene.add.text(400, 150, "ЧПУ РОБОТ", {color: '#fff'}).setOrigin(0.5);
+                let cpuTrigger = scene.physics.add.staticSprite(400, 150).setSize(150, 100);
+
+                let kroma = scene.add.rectangle(400, 450, 150, 100, 0x37474f).setStrokeStyle(2, 0x0ff);
+                scene.add.text(400, 450, "КРОМКА", {color: '#fff'}).setOrigin(0.5);
+                let kromaTrigger = scene.physics.add.staticSprite(400, 450).setSize(150, 100);
+
+                scene.physics.add.overlap(player, cpuTrigger, () => {
+                    if (status === "HAS_DSP") {
+                        status = "CPU_DONE";
+                        updateItemVisual(0x8d6e63);
+                        messageText.setText("РАСПИЛЕНО! ТЕПЕРЬ НА КРОМКУ (ВНИЗУ)");
+                    }
+                });
+
+                scene.physics.add.overlap(player, kromaTrigger, () => {
+                    if (status === "CPU_DONE") {
+                        status = "KROMKA_DONE";
+                        messageText.setText("КРОМКА ГОТОВА! ИДИ В ЦЕХ УПАКОВКИ (НАПРАВО)");
+                    }
+                });
+
+                let door = scene.add.rectangle(780, 300, 40, 150, 0x000, 0.5);
+                let doorTrigger = scene.physics.add.staticSprite(780, 300).setSize(40, 150);
+                scene.physics.add.overlap(player, doorTrigger, () => {
+                    if (status === "KROMKA_DONE") changeRoom(scene, 3, 60, 300);
+                });
             }
 
-            // 2. СТАНКИ И ДЕКОР (Для атмосферы как на скрине)
-            drawMachine(this, 150, 150, 'ПИЛА');
-            drawMachine(this, 150, 450, 'ПРЕСС');
+            else if (roomNumber === 3) {
+                scene.add.rectangle(400, 300, 800, 600, 0x2e7d32);
+                messageText.setText("ЦЕХ 3: УПАКОВКА");
 
-            // 3. ВЕРСТАК (Цель)
-            workbench = this.add.container(700, 300);
-            let table = this.add.rectangle(0, 0, 120, 180, 0x3e2723).setStrokeStyle(4, 0x212121);
-            let shadow = this.add.rectangle(10, 10, 120, 180, 0x000000, 0.2);
-            let label = this.add.text(-40, -10, 'СБОРКА', { fontSize: '18px', color: '#ffd54f', fontStyle: 'bold' });
-            workbench.add([shadow, table, label]);
-            this.physics.add.existing(workbench, true);
+                let pack = scene.add.rectangle(400, 300, 120, 120, 0xffffff, 0.8).setStrokeStyle(4, 0x000);
+                scene.add.text(400, 300, "СТРЕЙЧ", {color: '#000'}).setOrigin(0.5);
+                let packTrigger = scene.physics.add.staticSprite(400, 300).setSize(120, 120);
 
-            // 4. МУН (Рыжий, тельняшка, джоггеры)
-            player = this.add.container(400, 300);
-            let pShadow = this.add.ellipse(0, 25, 40, 15, 0x000000, 0.3);
-            let pPants = this.add.rectangle(0, 15, 30, 25, 0x212121); // Джоггеры
-            let pShirt = this.add.rectangle(0, -10, 32, 32, 0xffffff); // Тельняшка
-            for(let i=0; i<3; i++) player.add(this.add.rectangle(0, -18+(i*8), 32, 4, 0x1a237e)); // Полоски
-            let pHead = this.add.rectangle(0, -35, 24, 25, 0xffccbc); // Лицо
-            let pHair = this.add.rectangle(0, -50, 30, 18, 0xe64a19); // РЫЖИЕ волосы (пышные)
-            let pEyeL = this.add.rectangle(-5, -35, 4, 4, 0x000000);
-            let pEyeR = this.add.rectangle(5, -35, 4, 4, 0x000000);
-            player.add([pShadow, pPants, pShirt, pHead, pHair, pEyeL, pEyeR]);
-            
-            this.physics.add.existing(player);
-            player.body.setCollideWorldBounds(true).setSize(40, 60).setOffset(-20, -40);
+                scene.physics.add.overlap(player, packTrigger, () => {
+                    if (status === "KROMKA_DONE") {
+                        status = "PACKED";
+                        updateItemVisual(0xeeeeee);
+                        messageText.setText("ЗАПАКОВАНО! НЕСИ К ВЫХОДУ (ВНИЗУ)");
+                    }
+                });
 
-            // 5. ИНТЕРФЕЙС (HUD) - Сделал как на твоем скрине
-            let hud = this.add.graphics();
-            hud.fillStyle(0x212121, 0.9);
-            hud.fillRect(10, 10, 250, 80); // Левое табло
-            hud.lineStyle(2, 0xffffff, 0.5);
-            hud.strokeRect(10, 10, 250, 80);
+                let exit = scene.add.rectangle(400, 580, 200, 40, 0x000);
+                let exitTrigger = scene.physics.add.staticSprite(400, 580).setSize(200, 40);
+                scene.physics.add.overlap(player, exitTrigger, () => {
+                    if (status === "PACKED") {
+                        status = "FINISH";
+                        messageText.setText("МУН, ТЫ ЛУЧШИЙ! ПЛАН ВЫПОЛНЕН!");
+                        scene.add.text(400, 200, "ЗАРПЛАТА ПРИШЛА!", {fontSize: '40px', fill: '#ff0'}).setOrigin(0.5);
+                    }
+                });
+            }
+        }
 
-            shiftText = this.add.text(20, 20, 'DAY: 01 | SHIFT: 08:00', { fontSize: '14px', fill: '#fff', fontStyle: 'bold' });
-            scoreText = this.add.text(20, 45, 'QUOTA: 0/10 planks', { fontSize: '18px', fill: '#ffd54f', fontStyle: 'bold' });
+        function changeRoom(scene, nextRoom, startX, startY) {
+            scene.cameras.main.fadeOut(300, 0, 0, 0);
+            scene.cameras.main.once('camerafadeoutcomplete', () => {
+                scene.add.rectangle(400, 300, 800, 600, 0x000); // Очистка визуала
+                player.setPosition(startX, startY);
+                createRoom(scene, nextRoom);
+                scene.cameras.main.fadeIn(300, 0, 0, 0);
+            });
+        }
 
-            // Табло справа (Персонаж)
-            this.add.rectangle(700, 45, 180, 70, 0x212121, 0.9).setStrokeStyle(2, 0xffffff, 0.5);
-            this.add.text(620, 25, 'WORKER: MOON', { fontSize: '14px', fill: '#fff' });
-            this.add.text(620, 45, '❤️❤️❤️', { fontSize: '18px' });
-
-            // 6. ПРЕДМЕТЫ
-            planks = this.physics.add.group();
-            spawnPlank(this);
-
-            // 7. ЛОГИКА
-            this.physics.add.overlap(player, planks, collect, null, this);
-            this.physics.add.overlap(player, workbench, deliver, null, this);
+        function updateItemVisual(color) {
+            player.getByName('item')?.destroy();
+            let item = game.scene.scenes[0].add.rectangle(0, -15, 60, 40, color, 0.9).setName('item');
+            player.add(item);
         }
 
         function update() {
-            player.body.setVelocity(0);
-            
-            // Движение за пальцем/мышкой
-            if (this.input.activePointer.isDown) {
-                this.physics.moveToObject(player, this.input.activePointer, 300);
-                player.iterate(child => { if(child.type === 'Rectangle') child.setAngle(Math.sin(game.loop.frame/5)*5) }); // Анимация покачивания
+            if (this.input.activePointer.isDown && status !== "FINISH") {
+                this.physics.moveToObject(player, this.input.activePointer, 320);
+            } else {
+                player.body.setVelocity(0);
             }
-
-            // Обновление времени
-            let elapsed = Math.floor((this.time.now - startTime) / 1000);
-            let mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
-            let secs = String(elapsed % 60).padStart(2, '0');
-            shiftText.setText(`DAY: 01 | SHIFT: 08:${secs}`); // Имитация времени
-        }
-
-        function spawnPlank(scene) {
-            let x = Phaser.Math.Between(100, 500);
-            let y = Phaser.Math.Between(150, 500);
-            let p = planks.create(x, y, null);
-            p.setAlpha(0);
-            // Визуал доски (пиксельный стиль)
-            p.visual = scene.add.container(x, y);
-            let wood = scene.add.rectangle(0, 0, 50, 15, 0xffa726).setStrokeStyle(2, 0xbf360c);
-            let grain = scene.add.rectangle(0, 0, 30, 2, 0xbf360c, 0.3);
-            p.visual.add([wood, grain]);
-        }
-
-        function collect(p, pl) {
-            if (!carriesPlank) {
-                carriesPlank = true;
-                pl.visual.destroy(); pl.destroy();
-                let held = this.add.rectangle(0, -15, 50, 15, 0xffa726).setStrokeStyle(2, 0xbf360c);
-                held.setName('item'); player.add(held);
-            }
-        }
-
-        function deliver() {
-            if (carriesPlank) {
-                carriesPlank = false;
-                score++;
-                scoreText.setText(`QUOTA: ${score}/10 planks`);
-                let item = player.getByName('item'); if (item) item.destroy();
-                if (score < 10) spawnPlank(this);
-                else {
-                    this.add.text(250, 250, 'СМЕНА ОКОНЧЕНА!', { fontSize: '42px', fill: '#00ff00', fontStyle: 'bold', stroke: '#000', strokeThickness: 6 });
-                    this.physics.pause();
-                }
-            }
-        }
-
-        function drawMachine(scene, x, y, name) {
-            let base = scene.add.rectangle(x, y, 100, 80, 0x455a64).setStrokeStyle(4, 0x263238);
-            let panel = scene.add.rectangle(x-20, y-10, 20, 30, 0x212121);
-            let btn = scene.add.circle(x-20, y-10, 4, 0xff0000);
-            scene.add.text(x-30, y+20, name, { fontSize: '12px', color: '#fff' });
         }
     </script>
 </body>
