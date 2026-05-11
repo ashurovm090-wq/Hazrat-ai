@@ -3,166 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MicroMoon: Pro Factory</title>
+    <title>Moon Furniture Factory Gold Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #1a1a1a; overflow: hidden; touch-action: none; }
+        body { margin: 0; padding: 0; background: #0a0a0a; overflow: hidden; }
         canvas { display: block; margin: 0 auto; image-rendering: pixelated; }
     </style>
 </head>
 <body>
-    <script>
-        const config = {
-            type: Phaser.AUTO,
-            scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
-            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
-            scene: { create: create, update: update }
-        };
+<script>
+/**
+ * MOON FACTORY: PRESTIGE VERSION
+ * Все объекты отрисованы вручную через геометрические примитивы для имитации Pixel Art.
+ */
 
-        const game = new Phaser.Game(config);
-        let player, floor, currentRoom = 1, status = "START";
-        let objectsGroup, door, uiText;
+const config = {
+    type: Phaser.AUTO,
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
+    physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
+    scene: { preload: preload, create: create, update: update }
+};
 
-        function create() {
-            // ФОН ЦЕХА
-            floor = this.add.rectangle(400, 300, 800, 600, 0x3e2723);
-            this.add.grid(400, 300, 800, 600, 40, 40, 0x000000, 0.2);
+const game = new Phaser.Game(config);
 
-            // СОЗДАЕМ МУНА (Максимально как на фото)
-            player = this.add.container(400, 300);
-            let shadow = this.add.ellipse(0, 28, 35, 12, 0x000000, 0.3);
-            let body = this.add.rectangle(0, 0, 30, 45, 0xffffff); // Тельняшка
-            for(let i=0; i<5; i++) player.add(this.add.rectangle(0, -15+(i*7), 30, 3, 0xed1c24)); // Красные полоски!
-            let head = this.add.rectangle(0, -35, 24, 26, 0xffdbac);
-            let hair = this.add.container(0, -45); // Ирокез
-            for(let i=0; i<3; i++) hair.add(this.add.rectangle(-8+(i*8), -10, 10, 15, 0x0071bc)); 
-            let pants = this.add.rectangle(0, 25, 32, 20, 0x1a1a1a); // Спортивки
-            player.add([shadow, body, head, hair, pants]);
-            
-            this.physics.add.existing(player);
-            player.body.setCollideWorldBounds(true).setSize(40, 60);
+let player, cursors, currentRoom = 1, status = "IDLE";
+let factoryLayer, objectsGroup, uiContainer, hintText, zoneDoor;
 
-            objectsGroup = this.physics.add.staticGroup();
-            uiText = this.add.text(20, 20, '', { fontSize: '18px', fill: '#ffd54f', backgroundColor: '#212121', padding: 5 });
+function preload() {}
 
-            drawRoom(this, 1);
+function create() {
+    // Создаем слои
+    factoryLayer = this.add.container(0, 0);
+    objectsGroup = this.physics.add.staticGroup();
+    
+    // Интерфейс
+    createUI(this);
+
+    // СОЗДАНИЕ ГЕРОЯ (МУН)
+    player = createMoon(this, 400, 300);
+    this.physics.add.existing(player);
+    player.body.setCollideWorldBounds(true).setSize(40, 50);
+
+    setupRoom(this, 1);
+
+    // Управление
+    this.input.on('pointerdown', (pointer) => {
+        this.physics.moveToObject(player, pointer, 260);
+    });
+}
+
+function createMoon(scene, x, y) {
+    const container = scene.add.container(x, y);
+    
+    const shadow = scene.add.ellipse(0, 25, 40, 15, 0x000000, 0.2);
+    const legs = scene.add.rectangle(0, 20, 30, 20, 0x1a1a1a); // Штаны
+    const torso = scene.add.rectangle(0, -5, 34, 40, 0xffffff); // Тельняшка
+    
+    // Красные полоски
+    for(let i=0; i<6; i++) {
+        torso.setStrokeStyle(0);
+        container.add(scene.add.rectangle(0, -20 + (i*7), 34, 3, 0xd32f2f));
+    }
+
+    const head = scene.add.rectangle(0, -35, 26, 28, 0xffdbac);
+    
+    // Ирокез (Синий)
+    const hair = scene.add.container(0, -45);
+    for(let i=0; i<5; i++) {
+        hair.add(scene.add.rectangle(-10 + (i*5), -5, 8, 18, 0x0277bd).setAngle(-10 + i*5));
+    }
+
+    container.add([shadow, legs, torso, head, hair]);
+    return container;
+}
+
+function setupRoom(scene, roomID) {
+    currentRoom = roomID;
+    factoryLayer.removeAll(true);
+    objectsGroup.clear(true, true);
+    if(zoneDoor) zoneDoor.destroy();
+
+    // Пол с градиентом и грязью
+    const bg = scene.add.rectangle(400, 300, 800, 600, roomID === 1 ? 0x4e342e : (roomID === 2 ? 0x37474f : 0x1b5e20));
+    const grid = scene.add.grid(400, 300, 800, 600, 40, 40, 0x000000, 0.1);
+    factoryLayer.add([bg, grid]);
+
+    if (roomID === 1) {
+        hintText.setText("ЦЕХ №1: СКЛАД СЫРЬЯ");
+        // Паллеты с деревом
+        for(let i=0; i<3; i++) {
+            createPallet(scene, 150, 150 + (i*150), i === 1);
         }
+    } else if (roomID === 2) {
+        hintText.setText("ЦЕХ №2: ОБРАБОТКА И КРОМКА");
+        createSawMachine(scene, 300, 200);
+        createEdgeMachine(scene, 500, 450);
+    } else if (roomID === 3) {
+        hintText.setText("ЦЕХ №3: УПАКОВКА");
+        createPackingStation(scene, 400, 300);
+    }
+}
 
-        // Рисуем реалистичный станок ЧПУ
-        function createSawMachine(scene, x, y) {
-            let base = scene.add.rectangle(x, y, 160, 100, 0x757575).setStrokeStyle(4, 0x424242);
-            let table = scene.add.rectangle(x, y-10, 140, 60, 0xbdbdbd);
-            let blade = scene.add.circle(x, y-10, 15, 0x424242).setAlpha(0.8); // Пила
-            let detail = scene.add.rectangle(x-40, y-15, 40, 5, 0xffffff); // Кнопки
-            let obj = scene.add.container(0, 0, [base, table, blade, detail]);
-            let trigger = scene.add.rectangle(x, y, 160, 100, 0x000, 0);
-            scene.physics.add.existing(trigger, true);
-            return trigger;
-        }
+// --- ДЕТАЛИЗИРОВАННЫЕ ОБЪЕКТЫ ---
 
-        // Рисуем реалистичный кромочник
-        function createEdgeMachine(scene, x, y) {
-            let base = scene.add.rectangle(x, y, 180, 80, 0x455a64).setStrokeStyle(4, 0x263238);
-            let rollers = scene.add.container(x, y);
-            for(let i=0; i<3; i++) rollers.add(scene.add.circle(-50+(i*50), 0, 12, 0x212121));
-            let light = scene.add.circle(x+70, y-20, 5, 0x00e676); // Индикатор
-            let trigger = scene.add.rectangle(x, y, 180, 80, 0x000, 0);
-            scene.physics.add.existing(trigger, true);
-            return trigger;
-        }
-
-        function drawRoom(scene, room) {
-            currentRoom = room;
-            objectsGroup.clear(true, true);
-            if(door) door.destroy();
-
-            if (room === 1) {
-                floor.setFillStyle(0x4e342e);
-                uiText.setText("ЗАДАНИЕ: ВОЗЬМИ ЛИСТ ДСП НА ПАЛЛЕТЕ");
-                // Паллета с ДСП
-                let pallet = scene.add.rectangle(150, 350, 120, 20, 0x795548);
-                let stack = scene.add.rectangle(150, 330, 110, 40, 0xffcc80).setStrokeStyle(1, 0xef6c00);
-                let obj = scene.physics.add.existing(scene.add.rectangle(150, 340, 120, 60, 0x000, 0), true);
-                
-                scene.physics.add.overlap(player, obj, () => {
-                    if (status === "START") {
-                        status = "HAS_DSP";
-                        updateCargo(0xffcc80, 60, 40);
-                        uiText.setText("ЛИСТ ВЗЯТ. НЕСИ В ЦЕХ РАСПИЛА (НАПРАВО)");
-                        createDoor(scene, 770, 300);
-                    }
-                });
-            } 
-            else if (room === 2) {
-                floor.setFillStyle(0x37474f);
-                uiText.setText("ЗАДАНИЕ: РАСПИЛИ НА ЧПУ И ПОКЛЕЙ КРОМКУ");
-                
-                let saw = createSawMachine(scene, 400, 150);
-                let edge = createEdgeMachine(scene, 400, 450);
-
-                scene.physics.add.overlap(player, saw, () => {
-                    if (status === "HAS_DSP") {
-                        status = "CPU_DONE";
-                        updateCargo(0xa1887f, 40, 30);
-                        uiText.setText("ГОТОВО. ТЕПЕРЬ НА КРОМОЧНЫЙ СТАНОК");
-                    }
-                });
-
-                scene.physics.add.overlap(player, edge, () => {
-                    if (status === "CPU_DONE") {
-                        status = "KROMKA_DONE";
-                        updateCargo(0x8d6e63, 40, 32); // Видна кромка
-                        uiText.setText("КРОМКА ОК. ТАЩИ НА УПАКОВКУ (НАПРАВО)");
-                        createDoor(scene, 770, 300);
-                    }
-                });
+function createPallet(scene, x, y, interactive) {
+    const base = scene.add.rectangle(x, y, 120, 15, 0x795548);
+    const wood = scene.add.rectangle(x, y-25, 110, 40, 0xbcaa8a).setStrokeStyle(2, 0x8d6e63);
+    factoryLayer.add([base, wood]);
+    
+    if(interactive) {
+        const zone = scene.add.rectangle(x, y, 120, 80, 0x00ff00, 0).setOrigin(0.5);
+        scene.physics.add.existing(zone, true);
+        scene.physics.add.overlap(player, zone, () => {
+            if(status === "IDLE") {
+                status = "WOOD";
+                updateMoonCargo(scene, 0xbcaa8a);
+                showNotification(scene, "МАТЕРИАЛ ВЗЯТ!");
+                spawnDoor(scene, 760, 300, 2);
             }
-            else if (room === 3) {
-                floor.setFillStyle(0x2e7d32);
-                uiText.setText("ЗАДАНИЕ: ЗАМОТАЙ В СТРЕЙЧ И ОТГРУЖАЙ");
-                let table = scene.add.rectangle(400, 300, 150, 100, 0x9e9e9e).setStrokeStyle(2, 0x424242);
-                let stretch = scene.add.rectangle(400, 300, 80, 80, 0xe3f2fd, 0.6);
-                let trigger = scene.physics.add.existing(scene.add.rectangle(400, 300, 150, 100, 0x000, 0), true);
+        });
+    }
+}
 
-                scene.physics.add.overlap(player, trigger, () => {
-                    if (status === "KROMKA_DONE") {
-                        status = "PACKED";
-                        updateCargo(0xffffff, 45, 35);
-                        uiText.setText("ГОТОВО! ВЫХОДИ ЧЕРЕЗ ВОРОТА");
-                        createDoor(scene, 400, 570);
-                    }
-                });
-            }
-        }
+function createSawMachine(scene, x, y) {
+    const body = scene.add.rectangle(x, y, 180, 120, 0x616161).setStrokeStyle(4, 0x212121);
+    const table = scene.add.rectangle(x, y-10, 160, 70, 0x9e9e9e);
+    const sawDisk = scene.add.circle(x, y-15, 20, 0x212121).setAlpha(0.7);
+    const lever = scene.add.rectangle(x-70, y, 10, 40, 0xff0000);
+    factoryLayer.add([body, table, sawDisk, lever]);
 
-        function createDoor(scene, x, y) {
-            door = scene.add.rectangle(x, y, 60, 60, 0xffff00, 0.3);
-            scene.add.text(x, y, "ВЫХОД", {fontSize: '12px'}).setOrigin(0.5);
-            scene.physics.add.existing(door, true);
-            scene.physics.add.overlap(player, door, () => {
-                if (currentRoom < 3) {
-                    player.setPosition(80, 300);
-                    drawRoom(scene, currentRoom + 1);
-                } else if (status === "PACKED") {
-                    uiText.setText("МИССИЯ ВЫПОЛНЕНА! ПРЕМЬЯ В КАРМАНЕ!");
-                    scene.physics.pause();
-                }
-            });
+    const zone = scene.add.rectangle(x, y, 180, 120, 0, 0);
+    scene.physics.add.existing(zone, true);
+    scene.physics.add.overlap(player, zone, () => {
+        if(status === "WOOD") {
+            status = "SAWED";
+            updateMoonCargo(scene, 0x8d6e63);
+            showNotification(scene, "РАСПИЛЕНО!");
         }
+    });
+}
 
-        function updateCargo(col, w, h) {
-            player.getByName('item')?.destroy();
-            let c = game.scene.scenes[0].add.rectangle(0, 0, w, h, col).setName('item').setAlpha(0.9).setStrokeStyle(1, 0x000);
-            player.add(c);
-        }
+function createEdgeMachine(scene, x, y) {
+    const body = scene.add.rectangle(x, y, 200, 100, 0x37474f).setStrokeStyle(4, 0x102027);
+    for(let i=0; i<4; i++) factoryLayer.add(scene.add.circle(x-60+(i*40), y, 15, 0x1a1a1a));
+    const monitor = scene.add.rectangle(x+60, y-60, 40, 30, 0x000000).setStrokeStyle(2, 0x00ff00);
+    factoryLayer.add([body, monitor]);
 
-        function update() {
-            if (this.input.activePointer.isDown) {
-                this.physics.moveToObject(player, this.input.activePointer, 280);
-            } else {
-                player.body.setVelocity(0);
-            }
+    const zone = scene.add.rectangle(x, y, 200, 100, 0, 0);
+    scene.physics.add.existing(zone, true);
+    scene.physics.add.overlap(player, zone, () => {
+        if(status === "SAWED") {
+            status = "EDGED";
+            updateMoonCargo(scene, 0x5d4037);
+            showNotification(scene, "КРОМКА ГОТОВА!");
+            spawnDoor(scene, 760, 300, 3);
         }
-    </script>
+    });
+}
+
+function createPackingStation(scene, x, y) {
+    const table = scene.add.rectangle(x, y, 220, 140, 0x424242).setStrokeStyle(4, 0x000);
+    const roll = scene.add.rectangle(x, y, 100, 100, 0xe3f2fd, 0.5);
+    factoryLayer.add([table, roll]);
+
+    const zone = scene.add.rectangle(x, y, 220, 140, 0, 0);
+    scene.physics.add.existing(zone, true);
+    scene.physics.add.overlap(player, zone, () => {
+        if(status === "EDGED") {
+            status = "PACKED";
+            updateMoonCargo(scene, 0xffffff);
+            showNotification(scene, "УПАКОВАНО!");
+            spawnDoor(scene, 400, 560, "FINISH");
+        }
+    });
+}
+
+function updateMoonCargo(scene, color) {
+    player.getByName('cargo')?.destroy();
+    const cargo = scene.add.rectangle(0, 0, 45, 30, color).setName('cargo').setAlpha(0.8).setStrokeStyle(1, 0x000);
+    player.add(cargo);
+}
+
+function spawnDoor(scene, x, y, target) {
+    if(zoneDoor) zoneDoor.destroy();
+    zoneDoor = scene.add.container(x, y);
+    const rect = scene.add.rectangle(0, 0, 80, 80, 0x00ff00, 0.2).setStrokeStyle(2, 0x00ff00);
+    const txt = scene.add.text(0, 0, "ДАЛЕЕ", {fontSize: '12px'}).setOrigin(0.5);
+    zoneDoor.add([rect, txt]);
+    
+    scene.physics.add.existing(zoneDoor);
+    scene.physics.add.overlap(player, zoneDoor, () => {
+        if(target === "FINISH") {
+            finishGame(scene);
+        } else {
+            player.setPosition(100, 300);
+            setupRoom(scene, target);
+        }
+    });
+}
+
+function createUI(scene) {
+    uiContainer = scene.add.container(0, 0).setScrollFactor(0);
+    const panel = scene.add.rectangle(400, 30, 780, 50, 0x000000, 0.8).setStrokeStyle(2, 0xffd54f);
+    hintText = scene.add.text(40, 20, "ЗАВОД МЕБЕЛИ: МУН В ДЕЛЕ", { fontSize: '20px', fill: '#ffd54f', fontStyle: 'bold' });
+    uiContainer.add([panel, hintText]);
+}
+
+function showNotification(scene, txt) {
+    const note = scene.add.text(400, 500, txt, { fontSize: '30px', fill: '#0f0', backgroundColor: '#000', padding: 10 }).setOrigin(0.5);
+    scene.tweens.add({ targets: note, alpha: 0, y: 450, duration: 2000, onComplete: () => note.destroy() });
+}
+
+function finishGame(scene) {
+    scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.8);
+    scene.add.text(400, 300, "ПЛАН ВЫПОЛНЕН!\nМУН ПОЛУЧИЛ ЗАРПЛАТУ\n100 000 РУБ.", { 
+        fontSize: '42px', fill: '#0f0', align: 'center', fontStyle: 'bold' 
+    }).setOrigin(0.5);
+    scene.physics.pause();
+}
+
+function update() {
+    if (!this.input.activePointer.isDown) {
+        player.body.setVelocity(0);
+    }
+}
+</script>
 </body>
 </html>
