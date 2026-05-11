@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MicroMoon: Factory Rooms Fix</title>
+    <title>MicroMoon: Furniture Tycoon</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background-color: #000; overflow: hidden; touch-action: none; }
@@ -15,140 +15,140 @@
         const config = {
             type: Phaser.AUTO,
             scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 800, height: 600 },
-            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
             scene: { create: create, update: update }
         };
 
         const game = new Phaser.Game(config);
         let player, messageText, floor, currentRoom = 1, status = "START";
-        let interactiveObjects, exitArrow;
+        let objectsGroup, door;
 
         function create() {
-            // ФОН (Пол)
             floor = this.add.rectangle(400, 300, 800, 600, 0x5d4037);
-            this.add.grid(400, 300, 800, 600, 80, 80, 0x000000, 0.1);
+            this.add.grid(400, 300, 800, 600, 40, 40, 0x000000, 0.1);
 
-            // МУН (Рыжий в тельняшке)
+            // СОЗДАЕМ МУНА
             player = this.add.container(400, 300);
-            let pBody = this.add.rectangle(0, 0, 32, 50, 0xffffff); // Тело
-            let s1 = this.add.rectangle(0, -8, 32, 4, 0x1a237e); // Полоски
-            let s2 = this.add.rectangle(0, 0, 32, 4, 0x1a237e);
-            let s3 = this.add.rectangle(0, 8, 32, 4, 0x1a237e);
-            let head = this.add.rectangle(0, -35, 24, 24, 0xffccbc); // Лицо
-            let hair = this.add.rectangle(0, -48, 32, 18, 0xe64a19); // Рыжие волосы
-            let pants = this.add.rectangle(0, 25, 32, 15, 0x212121); // Штаны
-            player.add([pBody, s1, s2, s3, head, hair, pants]);
+            let body = this.add.rectangle(0, 0, 34, 52, 0xffffff); // Тельняшка
+            for(let i=0; i<4; i++) player.add(this.add.rectangle(0, -12+(i*8), 34, 4, 0x1a237e));
+            let head = this.add.rectangle(0, -38, 26, 26, 0xffccbc);
+            let hair = this.add.rectangle(0, -52, 34, 20, 0xe64a19); // Рыжий
+            let pants = this.add.rectangle(0, 26, 34, 18, 0x212121); // Джоггеры
+            player.add([body, head, hair, pants]);
             
             this.physics.add.existing(player);
             player.body.setCollideWorldBounds(true);
 
-            // Группа для объектов комнаты
-            interactiveObjects = this.add.group();
-            exitArrow = this.add.text(720, 280, 'В ЦЕХ 2 ➔', { fontSize: '20px', fill: '#0f0' }).setVisible(false);
+            objectsGroup = this.physics.add.staticGroup();
+            messageText = this.add.text(400, 40, '', { fontSize: '20px', fill: '#fff', backgroundColor: '#000', padding: 10 }).setOrigin(0.5);
 
-            messageText = this.add.text(400, 40, '', { 
-                fontSize: '22px', fill: '#fff', backgroundColor: '#000', padding: 8 
-            }).setOrigin(0.5);
+            drawRoom(this, 1);
 
-            setupRoom(this, 1);
+            // ЛОГИКА ТАПА
+            this.input.on('pointerdown', (pointer) => {
+                this.physics.moveToObject(player, pointer, 300);
+            });
         }
 
-        function setupRoom(scene, room) {
+        function drawRoom(scene, room) {
             currentRoom = room;
-            interactiveObjects.clear(true, true);
-            exitArrow.setVisible(false);
+            objectsGroup.clear(true, true);
+            if(door) door.destroy();
 
             if (room === 1) {
                 floor.setFillStyle(0x5d4037);
-                messageText.setText("ЦЕХ 1: СКЛАД. ВОЗЬМИ ДСП!");
-                let dsp = scene.add.rectangle(150, 300, 100, 140, 0xffa726).setStrokeStyle(3, 0xffffff);
-                scene.add.text(150, 300, "ДСП", {color: '#000'}).setOrigin(0.5);
-                interactiveObjects.add(dsp);
-                
-                scene.physics.add.existing(dsp, true);
+                messageText.setText("ЦЕХ 1: СКЛАД. ВОЗЬМИ ЛИСТ ДСП!");
+                let dsp = scene.add.rectangle(150, 300, 100, 150, 0xffa726).setStrokeStyle(3, 0xffffff);
+                scene.add.text(150, 300, "ДСП", {color: '#000', fontStyle: 'bold'}).setOrigin(0.5);
+                objectsGroup.add(dsp);
+
                 scene.physics.add.overlap(player, dsp, () => {
                     if (status === "START") {
                         status = "HAS_DSP";
-                        updateCargo(0xffa726);
-                        messageText.setText("ДСП У МУНА! ИДИ В ЦЕХ 2 (НАПРАВО)");
-                        exitArrow.setVisible(true).setText("В ЦЕХ 2 ➔").setX(700);
+                        addCargo(0xffa726);
+                        messageText.setText("ЛИСТ У МУНА! ДУЙ В ЦЕХ 2 (СПРАВА)");
+                        createDoor(scene, 760, 300, "В ЦЕХ 2");
                     }
                 });
             } 
             else if (room === 2) {
                 floor.setFillStyle(0x455a64);
-                messageText.setText("ЦЕХ 2: РАСПИЛ И КРОМКА");
+                messageText.setText("ЦЕХ 2: РАБОТА С РОБОТОМ И КРОМКОЙ");
                 
-                let cpu = scene.add.rectangle(400, 150, 140, 90, 0x212121).setStrokeStyle(2, 0x0f0);
-                scene.add.text(400, 150, "ЧПУ РОБОТ", {fontSize: '14px'});
+                let cpu = scene.add.rectangle(400, 180, 160, 100, 0x212121).setStrokeStyle(2, 0x0f0);
+                scene.add.text(400, 180, "ЧПУ РОБОТ", {fontSize: '16px'});
                 
-                let kroma = scene.add.rectangle(400, 450, 140, 90, 0x37474f).setStrokeStyle(2, 0x0ff);
-                scene.add.text(400, 450, "КРОМКА", {fontSize: '14px'});
+                let kroma = scene.add.rectangle(400, 420, 160, 100, 0x37474f).setStrokeStyle(2, 0x0ff);
+                scene.add.text(400, 420, "КРОМКА", {fontSize: '16px'});
 
-                scene.physics.add.existing(cpu, true);
-                scene.physics.add.existing(kroma, true);
+                objectsGroup.add(cpu);
+                objectsGroup.add(kroma);
 
                 scene.physics.add.overlap(player, cpu, () => {
                     if (status === "HAS_DSP") {
                         status = "CPU_DONE";
-                        updateCargo(0x8d6e63);
-                        messageText.setText("РАСПИЛЕНО! ТЕПЕРЬ НА КРОМКУ");
+                        addCargo(0x8d6e63);
+                        messageText.setText("РАСПИЛЕНО! ТЕПЕРЬ ПОКЛЕЙ КРОМКУ");
                     }
                 });
 
                 scene.physics.add.overlap(player, kroma, () => {
                     if (status === "CPU_DONE") {
                         status = "KROMKA_DONE";
-                        messageText.setText("ГОТОВО! ИДИ В ЦЕХ 3 (НАПРАВО)");
-                        exitArrow.setVisible(true).setText("В ЦЕХ 3 ➔").setX(700);
+                        messageText.setText("ГОТОВО! ИДИ НА УПАКОВКУ (СПРАВА)");
+                        createDoor(scene, 760, 300, "В ЦЕХ 3");
                     }
                 });
             }
             else if (room === 3) {
                 floor.setFillStyle(0x1b5e20);
-                messageText.setText("ЦЕХ 3: УПАКОВКА И ВЫХОД");
-                
-                let pack = scene.add.rectangle(400, 300, 120, 120, 0xffffff).setAlpha(0.8);
-                scene.add.text(400, 300, "СТРЕЙЧ", {color: '#000'}).setOrigin(0.5);
-                scene.physics.add.existing(pack, true);
+                messageText.setText("ЦЕХ 3: УПАКОВКА В СТРЕЙЧ");
+                let pack = scene.add.rectangle(400, 300, 150, 150, 0xffffff, 0.8).setStrokeStyle(4, 0x000);
+                scene.add.text(400, 300, "СТРЕЙЧ-ПЛЕНКА", {color: '#000', fontStyle: 'bold'}).setOrigin(0.5);
+                objectsGroup.add(pack);
 
                 scene.physics.add.overlap(player, pack, () => {
                     if (status === "KROMKA_DONE") {
                         status = "PACKED";
-                        updateCargo(0xdddddd);
-                        messageText.setText("ЗАПАКОВАНО! НЕСИ К ВЫХОДУ (ВНИЗ)");
-                        exitArrow.setVisible(true).setText("ВЫХОД ⬇").setX(350).setY(550);
+                        addCargo(0xeeeeee);
+                        messageText.setText("ЗАПАКОВАНО! ВСЁ, ТАЩИ К ВЫХОДУ!");
+                        createDoor(scene, 400, 560, "ВЫХОД (ЖМИ СЮДА)");
                     }
                 });
             }
         }
 
-        function updateCargo(color) {
-            player.getByName('cargo')?.destroy();
-            let cargo = game.scene.scenes[0].add.rectangle(0, 0, 40, 25, color).setName('cargo').setAlpha(0.8);
-            player.add(cargo);
+        function createDoor(scene, x, y, txt) {
+            door = scene.add.rectangle(x, y, 80, 80, 0x00ff00, 0.3).setStrokeStyle(2, 0x00ff00);
+            scene.add.text(x, y, txt, {fontSize: '14px', fill: '#0f0', fontStyle: 'bold'}).setOrigin(0.5);
+            scene.physics.add.existing(door, true);
+            scene.physics.add.overlap(player, door, () => {
+                if (currentRoom < 3) {
+                    player.setPosition(80, 300);
+                    drawRoom(scene, currentRoom + 1);
+                } else if (status === "PACKED") {
+                    finishGame(scene);
+                }
+            });
+        }
+
+        function addCargo(col) {
+            player.getByName('item')?.destroy();
+            let c = game.scene.scenes[0].add.rectangle(0, 0, 45, 30, col, 0.9).setName('item');
+            player.add(c);
+        }
+
+        function finishGame(scene) {
+            status = "FINISH";
+            messageText.setText("СМЕНА ОКОНЧЕНА! КРАСАВА, МУН!");
+            scene.add.text(400, 300, "ЗАРПЛАТА: 100.000₽\nМОЖНО ОТДЫХАТЬ!", { 
+                fontSize: '40px', fill: '#0f0', align: 'center', backgroundColor: '#000' 
+            }).setOrigin(0.5);
+            scene.physics.pause();
         }
 
         function update() {
-            if (this.input.activePointer.isDown) {
-                this.physics.moveToObject(player, this.input.activePointer, 300);
-            } else {
-                player.body.setVelocity(0);
-            }
-
-            // Логика перехода комнат (по координатам)
-            if (player.x > 770 && exitArrow.visible) {
-                if (currentRoom < 3) {
-                    player.x = 50; 
-                    setupRoom(this, currentRoom + 1);
-                }
-            }
-            if (player.y > 550 && status === "PACKED" && currentRoom === 3) {
-                status = "FINISH";
-                messageText.setText("КРАСАВА! ПЛАН ВЫПОЛНЕН!");
-                this.add.text(400, 300, "ЗАРПЛАТА 100.000₽", {fontSize: '50px', fill: '#f0f', backgroundColor: '#000'}).setOrigin(0.5);
-                this.physics.pause();
-            }
+            if (!this.input.activePointer.isDown) player.body.setVelocity(0);
         }
     </script>
 </body>
