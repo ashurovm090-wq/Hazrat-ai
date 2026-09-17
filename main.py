@@ -1,11 +1,11 @@
 import random
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 app = FastAPI()
 
-# Разрешаем запросы с фронтенда
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,19 +14,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Мок-база предметов (в реальности берется из SQLite)
 ITEMS = {
     "1": {"id": "1", "name": "P250 | Sand Dune", "price": 10.0},
     "2": {"id": "2", "name": "AK-47 | Redline", "price": 100.0},
     "3": {"id": "3", "name": "AWM | Asiimov", "price": 500.0},
 }
 
-# Платформенный маржа/комиссия (House Edge) 5%
-HOUSE_EDGE = 0.95 
+HOUSE_EDGE = 0.95
 
 class UpgradeRequest(BaseModel):
     user_item_id: str
     target_item_id: str
+
+# Главная страница загружает index.html
+@app.get("/", response_class=HTMLResponse)
+async def read_index():
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h1>Файл index.html не найден в репозитории</h1>"
 
 @app.post("/api/upgrade")
 async def upgrade(req: UpgradeRequest):
@@ -39,24 +46,17 @@ async def upgrade(req: UpgradeRequest):
     if user_item["price"] >= target_item["price"]:
         raise HTTPException(status_code=400, detail="Целевой предмет должен быть дороже")
 
-    # Расчет шанса в процентах (с учетом комиссии сайта)
-    # Например: (10 / 100) * 100 * 0.95 = 9.5%
     win_chance = (user_item["price"] / target_item["price"]) * 100 * HOUSE_EDGE
-    win_chance = round(min(win_chance, 80.0), 2)  # Ограничиваем макс. шанс до 80%
+    win_chance = round(min(win_chance, 80.0), 2)
 
-    # Генерация случайного числа от 0.00 до 100.00
     roll = random.uniform(0, 100)
     is_win = roll <= win_chance
 
-    # Расчет угла остановки стрелки (от 0 до 360 градусов)
-    # Зона победы: от 0 до (win_chance / 100 * 360)
     winning_angle_max = (win_chance / 100) * 360
 
     if is_win:
-        # Выпадаем в жёлтую зону
         stop_angle = random.uniform(2, max(2, winning_angle_max - 2))
     else:
-        # Выпадаем в серую зону
         stop_angle = random.uniform(winning_angle_max + 2, 358)
 
     return {
