@@ -1,57 +1,348 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Upgrader</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Upgrade | Skin Drop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        body { background: #121214; color: white; font-family: sans-serif; text-align: center; }
-        .wheel-container { position: relative; width: 300px; height: 300px; margin: 30px auto; }
-        .wheel {
-            width: 100%; height: 100%; border-radius: 50%;
-            background: conic-gradient(#ffd700 0deg var(--win-angle, 36deg), #2a2b30 var(--win-angle, 36deg) 360deg);
-            transition: transform 4s cubic-bezier(0.15, 0.9, 0.15, 1);
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
         }
+
+        body {
+            background: #0d0e12;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 100vh;
+            padding: 20px 15px;
+            overflow-x: hidden;
+        }
+
+        header {
+            width: 100%;
+            text-align: center;
+            padding: 10px 0;
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #ff7675, #fdcb6e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Карточки предметов */
+        .upgrade-arena {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 400px;
+            margin: 15px 0;
+            gap: 10px;
+        }
+
+        .item-card {
+            background: #16181f;
+            border: 1px solid #272a36;
+            border-radius: 16px;
+            padding: 15px 10px;
+            width: 45%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+
+        .item-card.target {
+            border-color: rgba(253, 203, 110, 0.4);
+            box-shadow: 0 0 15px rgba(253, 203, 110, 0.15);
+        }
+
+        .item-card .title {
+            font-size: 11px;
+            color: #717a8a;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .item-card .name {
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .item-card .price {
+            font-size: 15px;
+            font-weight: 800;
+            color: #2ed573;
+            background: rgba(46, 213, 115, 0.1);
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .vs-badge {
+            font-size: 14px;
+            font-weight: 900;
+            color: #717a8a;
+            font-style: italic;
+        }
+
+        /* Колесо */
+        .wheel-wrapper {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        .wheel-center {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: #0d0e12;
+            border-radius: 50%;
+            border: 4px solid #16181f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .chance-label {
+            font-size: 11px;
+            color: #717a8a;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .chance-value {
+            font-size: 28px;
+            font-weight: 900;
+            color: #fdcb6e;
+        }
+
         .pointer {
-            position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
-            width: 0; height: 0; 
-            border-left: 12px solid transparent; border-right: 12px solid transparent;
-            border-top: 20px solid #ff4757; z-index: 10;
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 20px solid #ff4757;
+            filter: drop-shadow(0 2px 6px rgba(255, 71, 87, 0.8));
+            z-index: 10;
         }
-        button { padding: 12px 24px; background: #2ed573; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; }
+
+        /* Кнопка и Результат */
+        .controls {
+            width: 100%;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .spin-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #2ed573, #1e90ff);
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(46, 213, 115, 0.3);
+            transition: transform 0.1s;
+        }
+
+        .spin-btn:active {
+            transform: scale(0.98);
+        }
+
+        .spin-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #result {
+            font-size: 16px;
+            font-weight: 800;
+            height: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Skin Upgrader</h1>
-    <div class="wheel-container">
-        <div class="pointer"></div>
-        <div class="wheel" id="wheel"></div>
+    <header>
+        <h1>Upgrader</h1>
+    </header>
+
+    <div class="upgrade-arena">
+        <div class="item-card">
+            <span class="title">Твой скин</span>
+            <span class="name">P250 Sand Dune</span>
+            <span class="price">$10.00</span>
+        </div>
+        <span class="vs-badge">VS</span>
+        <div class="item-card target">
+            <span class="title">Цель</span>
+            <span class="name">AK-47 Redline</span>
+            <span class="price">$100.00</span>
+        </div>
     </div>
 
-    <button onclick="spin()">Крутить (10$-> 100$)</button>
-    <h2 id="result"></h2>
+    <div class="wheel-wrapper">
+        <div class="pointer"></div>
+        <canvas id="wheelCanvas" width="520" height="520"></canvas>
+        <div class="wheel-center">
+            <span class="chance-label">Шанс</span>
+            <span class="chance-value" id="chanceVal">9.5%</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div id="result"></div>
+        <button class="spin-btn" id="spinBtn" onclick="spin()">Апгрейд</button>
+    </div>
 
     <script>
-        // Устанавливаем сектор победы (10% = 36 градусов)
-        document.getElementById('wheel').style.setProperty('--win-angle', '36deg');
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let currentRotation = 0; // Текущий угол поворота
+        let winChance = 9.5;     // Начальный шанс %
+
+        function drawWheel(rotation = 0, chance = 9.5) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const winAngleRad = (chance / 100) * (2 * Math.PI);
+            const startAngle = -Math.PI / 2 + rotation; // Начинаем от верха (стрелки)
+
+            // Рисуем ЖЕЛТЫЙ сектор (Вин)
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, radius, startAngle, startAngle + winAngleRad);
+            ctx.fillStyle = '#fdcb6e';
+            ctx.fill();
+
+            // Рисуем ТЕМНЫЙ сектор (Луз)
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, radius, startAngle + winAngleRad, startAngle + (2 * Math.PI));
+            ctx.fillStyle = '#1b1d26';
+            ctx.fill();
+        }
+
+        // Отрисовка колеса при старте
+        drawWheel(0, winChance);
 
         async function spin() {
-            const response = await fetch('https://твой-апп.onrender.com/api/upgrade', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_item_id: "1", target_item_id: "2" })
-            });
-            const data = await response.json();
-
-            // Делаем несколько полных оборотов (например, 5) + угол остановки
-            const totalRotation = 360 * 5 + (360 - data.stop_angle);
-            const wheel = document.getElementById('wheel');
+            const btn = document.getElementById('spinBtn');
+            const resultDiv = document.getElementById('result');
+            const chanceVal = document.getElementById('chanceVal');
             
-            wheel.style.transform = `rotate(${totalRotation}deg)`;
+            btn.disabled = true;
+            resultDiv.innerText = '';
 
-            setTimeout(() => {
-                document.getElementById('result').innerText = data.is_win ? "ВИН! 🎉" : "ЛУЗ! ❌";
-            }, 4000);
+            try {
+                const response = await fetch('/api/upgrade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_item_id: "1", target_item_id: "2" })
+                });
+
+                const data = await response.json();
+
+                winChance = data.win_chance;
+                chanceVal.innerText = `${winChance}%`;
+
+                // Рассчитываем итоговый угол остановки (в радианах)
+                // 5 полных оборотов + смещение
+                const targetAngleDeg = data.stop_angle;
+                const targetAngleRad = (360 - targetAngleDeg) * (Math.PI / 180);
+                const totalRotationRad = (5 * 2 * Math.PI) + targetAngleRad;
+
+                const startTime = performance.now();
+                const duration = 4000; // 4 секунды анимации
+
+                function animate(now) {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Плавное замедление (easeOutCubic)
+                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+                    
+                    currentRotation = totalRotationRad * easeProgress;
+                    drawWheel(currentRotation, winChance);
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // Завершение вращения
+                        if (data.is_win) {
+                            resultDiv.style.color = '#2ed573';
+                            resultDiv.innerText = 'Успех! +AK-47 Redline 🔥';
+                        } else {
+                            resultDiv.style.color = '#ff4757';
+                            resultDiv.innerText = 'Неудача! Скин сгорел 💀';
+                        }
+                        btn.disabled = false;
+                    }
+                }
+
+                requestAnimationFrame(animate);
+
+            } catch (err) {
+                resultDiv.style.color = '#ff4757';
+                resultDiv.innerText = 'Ошибка запроса!';
+                btn.disabled = false;
+            }
         }
     </script>
 </body>
