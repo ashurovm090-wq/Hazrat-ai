@@ -3,327 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Top Up | Upgrade</title>
+    <title>Torch Drop</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background: #0d0e12; color: #fff; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 10px 15px 30px; }
 
-        body {
-            background: #0d0e12;
-            color: #ffffff;
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            padding: 15px;
-            overflow-x: hidden;
-        }
+        /* Шапка сайта */
+        header { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 0 15px; }
+        .logo { font-size: 22px; font-weight: 900; letter-spacing: 1.5px; background: linear-gradient(90deg, #ff4e50, #f9d423); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; }
+        .balance-box { display: flex; align-items: center; background: #16181f; border: 1px solid #272a36; border-radius: 10px; padding: 4px 6px 4px 12px; gap: 8px; }
+        .balance-val { font-size: 14px; font-weight: 800; color: #2ed573; }
+        .dep-btn { background: linear-gradient(135deg, #ff4e50, #f9d423); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 800; font-size: 12px; cursor: pointer; }
 
-        header {
-            width: 100%;
-            text-align: center;
-            padding: 10px 0 15px;
-        }
+        /* Вкладки */
+        .tabs { display: flex; width: 100%; max-width: 400px; background: #16181f; border-radius: 10px; padding: 3px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #717a8a; font-weight: 700; font-size: 13px; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
+        .tab-btn.active { background: linear-gradient(135deg, #ff4e50, #f9d423); color: #000; }
 
-        header h1 {
-            font-size: 28px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            background: linear-gradient(90deg, #00c6ff, #0072ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        .page { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; }
+        .page.active { display: flex; }
 
-        /* Выбранные предметы */
-        .upgrade-arena {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 400px;
-            margin-bottom: 10px;
-            gap: 10px;
-        }
+        /* Карточки Апгрейда */
+        .upgrade-arena { display: flex; justify-content: space-between; width: 100%; gap: 10px; margin-bottom: 10px; }
+        .item-card { background: #16181f; border: 1px solid #272a36; border-radius: 14px; padding: 10px; width: 48%; display: flex; flex-direction: column; align-items: center; }
+        .item-card.target { border-color: rgba(255, 78, 80, 0.4); }
+        .item-card .title { font-size: 10px; color: #717a8a; font-weight: 600; text-transform: uppercase; }
+        .item-card .icon { font-size: 22px; margin: 2px 0; }
+        .item-card .name { font-size: 11px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+        .item-card .price { font-size: 13px; font-weight: 800; color: #2ed573; background: rgba(46, 213, 115, 0.1); padding: 2px 6px; border-radius: 6px; margin-top: 4px; }
 
-        .item-card {
-            background: #16181f;
-            border: 1px solid #272a36;
-            border-radius: 16px;
-            padding: 12px 10px;
-            width: 45%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-            transition: all 0.2s;
-        }
+        /* Рулетка */
+        .wheel-wrapper { position: relative; width: 210px; height: 210px; margin: 10px 0; display: flex; align-items: center; justify-content: center; }
+        canvas { width: 210px; height: 210px; border-radius: 50%; }
+        .wheel-center { position: absolute; width: 120px; height: 120px; background: #0d0e12; border-radius: 50%; border: 3px solid #16181f; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+        .chance-label { font-size: 9px; color: #717a8a; font-weight: 600; text-transform: uppercase; }
+        .chance-value { font-size: 22px; font-weight: 900; color: #ff4e50; }
+        .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 16px solid #ff4e50; z-index: 10; }
 
-        .item-card.target {
-            border-color: rgba(0, 198, 255, 0.4);
-            box-shadow: 0 0 15px rgba(0, 198, 255, 0.15);
-        }
+        .spin-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg, #ff4e50, #f9d423); color: #000; font-size: 15px; font-weight: 800; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 78, 80, 0.3); }
+        .spin-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        #result { font-size: 13px; font-weight: 800; height: 18px; margin-bottom: 8px; text-transform: uppercase; }
 
-        .item-card .title {
-            font-size: 10px;
-            color: #717a8a;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
+        /* Сетка скинов */
+        .section-title { font-size: 11px; font-weight: 700; color: #717a8a; text-transform: uppercase; margin: 12px 0 6px; width: 100%; }
+        .items-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+        .grid-item { background: #16181f; border: 1px solid #272a36; border-radius: 8px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+        .grid-item.selected { border-color: #ff4e50; background: rgba(255, 78, 80, 0.1); }
+        .grid-item .g-icon { font-size: 16px; }
+        .grid-item .g-name { font-size: 8px; font-weight: 600; text-align: center; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+        .grid-item .g-price { font-size: 9px; font-weight: 800; color: #2ed573; }
 
-        .item-card .icon {
-            font-size: 24px;
-            margin: 4px 0;
-        }
-
-        .item-card .name {
-            font-size: 12px;
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 6px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            width: 100%;
-        }
-
-        .item-card .price {
-            font-size: 14px;
-            font-weight: 800;
-            color: #2ed573;
-            background: rgba(46, 213, 115, 0.1);
-            padding: 3px 8px;
-            border-radius: 6px;
-        }
-
-        .vs-badge {
-            font-size: 14px;
-            font-weight: 900;
-            color: #717a8a;
-            font-style: italic;
-        }
-
-        /* Колесо */
-        .wheel-wrapper {
-            position: relative;
-            width: 230px;
-            height: 230px;
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        canvas {
-            width: 230px;
-            height: 230px;
-            border-radius: 50%;
-        }
-
-        .wheel-center {
-            position: absolute;
-            width: 130px;
-            height: 130px;
-            background: #0d0e12;
-            border-radius: 50%;
-            border: 4px solid #16181f;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 5;
-            pointer-events: none;
-        }
-
-        .chance-label {
-            font-size: 10px;
-            color: #717a8a;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .chance-value {
-            font-size: 24px;
-            font-weight: 900;
-            color: #00c6ff;
-        }
-
-        .pointer {
-            position: absolute;
-            top: -4px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 9px solid transparent;
-            border-right: 9px solid transparent;
-            border-top: 18px solid #ff4757;
-            filter: drop-shadow(0 2px 6px rgba(255, 71, 87, 0.8));
-            z-index: 10;
-        }
-
-        /* Кнопка и Результат */
-        .controls {
-            width: 100%;
-            max-width: 380px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .spin-btn {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #00c6ff, #0072ff);
-            color: #ffffff;
-            font-family: inherit;
-            font-size: 15px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-            box-shadow: 0 6px 20px rgba(0, 198, 255, 0.3);
-            transition: transform 0.1s;
-        }
-
-        .spin-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        #result {
-            font-size: 14px;
-            font-weight: 800;
-            height: 20px;
-            text-transform: uppercase;
-        }
-
-        /* Сетка выбора скинов */
-        .inventory-section {
-            width: 100%;
-            max-width: 400px;
-            margin-top: 10px;
-        }
-
-        .section-title {
-            font-size: 12px;
-            font-weight: 700;
-            color: #717a8a;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .items-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .grid-item {
-            background: #16181f;
-            border: 1px solid #272a36;
-            border-radius: 10px;
-            padding: 8px 4px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .grid-item.selected {
-            border-color: #00c6ff;
-            background: rgba(0, 198, 255, 0.1);
-        }
-
-        .grid-item .g-icon { font-size: 18px; }
-        .grid-item .g-name { font-size: 9px; font-weight: 600; text-align: center; margin: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
-        .grid-item .g-price { font-size: 10px; font-weight: 800; color: #2ed573; }
+        /* Модалка пополнения */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: #16181f; border: 1px solid #272a36; border-radius: 16px; padding: 20px; width: 90%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
+        .modal h2 { font-size: 18px; text-align: center; }
+        .dep-input { padding: 12px; background: #0d0e12; border: 1px solid #272a36; border-radius: 8px; color: #fff; font-size: 16px; text-align: center; }
+        .modal-btns { display: flex; gap: 10px; }
+        .modal-btns button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .confirm-btn { background: #2ed573; color: #000; }
+        .close-btn { background: #ff4757; color: #fff; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>TOP UP</h1>
+        <div class="logo">🔥 Torch Drop</div>
+        <div class="balance-box">
+            <span class="balance-val" id="balanceVal">$0.00</span>
+            <button class="dep-btn" onclick="openDepModal()">+</button>
+        </div>
     </header>
 
-    <div class="upgrade-arena">
-        <div class="item-card" id="userCard">
-            <span class="title">Ваш скин</span>
-            <span class="icon" id="uIcon">🔫</span>
-            <span class="name" id="uName">P250 Sand Dune</span>
-            <span class="price" id="uPrice">$10.00</span>
-        </div>
-        <span class="vs-badge">VS</span>
-        <div class="item-card target" id="targetCard">
-            <span class="title">Цель</span>
-            <span class="icon" id="tIcon">🔥</span>
-            <span class="name" id="tName">AK-47 Redline</span>
-            <span class="price" id="tPrice">$100.00</span>
-        </div>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('upgrade')">Апгрейд</button>
+        <button class="tab-btn" onclick="switchTab('shop')">Магазин</button>
     </div>
 
-    <div class="wheel-wrapper">
-        <div class="pointer"></div>
-        <canvas id="wheelCanvas" width="460" height="460"></canvas>
-        <div class="wheel-center">
-            <span class="chance-label">Шанс</span>
-            <span class="chance-value" id="chanceVal">9.5%</span>
+    <!-- Страница Апгрейда -->
+    <div class="page active" id="page-upgrade">
+        <div class="upgrade-arena">
+            <div class="item-card">
+                <span class="title">Ваш скин</span>
+                <span class="icon" id="uIcon">-</span>
+                <span class="name" id="uName">Выберите скин</span>
+                <span class="price" id="uPrice">$0</span>
+            </div>
+            <div class="item-card target">
+                <span class="title">Цель</span>
+                <span class="icon" id="tIcon">-</span>
+                <span class="name" id="tName">Выберите цель</span>
+                <span class="price" id="tPrice">$0</span>
+            </div>
         </div>
-    </div>
 
-    <div class="controls">
+        <div class="wheel-wrapper">
+            <div class="pointer"></div>
+            <canvas id="wheelCanvas" width="420" height="420"></canvas>
+            <div class="wheel-center">
+                <span class="chance-label">Шанс</span>
+                <span class="chance-value" id="chanceVal">0%</span>
+            </div>
+        </div>
+
         <div id="result"></div>
         <button class="spin-btn" id="spinBtn" onclick="spin()">Апгрейд</button>
-    </div>
 
-    <div class="inventory-section">
-        <div class="section-title">1. Выберите ваш скин:</div>
+        <div class="section-title">1. Выберите ваш скин из инвентаря:</div>
         <div class="items-grid" id="userGrid"></div>
 
-        <div class="section-title">2. Выберите цель:</div>
+        <div class="section-title">2. Выберите желаемую цель:</div>
         <div class="items-grid" id="targetGrid"></div>
+    </div>
+
+    <!-- Страница Магазина -->
+    <div class="page" id="page-shop">
+        <div class="section-title">Купить скин в инвентарь:</div>
+        <div class="items-grid" id="shopGrid"></div>
+    </div>
+
+    <!-- Модалка пополнения -->
+    <div class="modal-overlay" id="depModal">
+        <div class="modal">
+            <h2>Пополнение баланса</h2>
+            <input type="number" class="dep-input" id="depAmount" value="100" placeholder="Сумма в $">
+            <div class="modal-btns">
+                <button class="confirm-btn" onclick="makeDeposit()">Пополнить</button>
+                <button class="close-btn" onclick="closeDepModal()">Отмена</button>
+            </div>
+        </div>
     </div>
 
     <script>
         const canvas = document.getElementById('wheelCanvas');
         const ctx = canvas.getContext('2d');
         
+        let state = { balance: 0, user_inventory: [], target_items: [], shop_items: [] };
         let selectedUserItem = null;
         let selectedTargetItem = null;
         let currentRotation = 0;
-        let winChance = 9.5;
+        let winChance = 0;
 
-        // Загрузка списков скинов
-        async function loadItems() {
-            const res = await fetch('/api/items');
-            const data = await res.json();
+        async function init() {
+            const res = await fetch('/api/init');
+            state = await res.json();
+            updateUI();
+        }
 
-            selectedUserItem = data.user_inventory[0];
-            selectedTargetItem = data.target_items[0];
+        function updateUI() {
+            document.getElementById('balanceVal').innerText = `$${state.balance.toFixed(2)}`;
+            
+            if (!selectedUserItem && state.user_inventory.length > 0) selectedUserItem = state.user_inventory[0];
+            if (!selectedTargetItem && state.target_items.length > 0) selectedTargetItem = state.target_items[0];
 
-            renderGrid('userGrid', data.user_inventory, 'user');
-            renderGrid('targetGrid', data.target_items, 'target');
+            renderGrid('userGrid', state.user_inventory, 'user');
+            renderGrid('targetGrid', state.target_items, 'target');
+            renderShopGrid('shopGrid', state.shop_items);
+            
             updateSelection();
         }
 
         function renderGrid(containerId, items, type) {
             const grid = document.getElementById(containerId);
+            if (items.length === 0) {
+                grid.innerHTML = '<div style="grid-column: span 4; font-size: 11px; color: #717a8a; text-align: center; padding: 10px;">Инвентарь пуст. Купите скин в магазине!</div>';
+                return;
+            }
             grid.innerHTML = items.map(item => `
-                <div class="grid-item" id="${type}-${item.id}" onclick="selectItem('${type}', '${item.id}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                <div class="grid-item" id="${type}-${item.id}" onclick="selectItem('${type}', '${item.id}')">
                     <span class="g-icon">${item.img}</span>
                     <span class="g-name">${item.name}</span>
                     <span class="g-price">$${item.price}</span>
@@ -331,36 +178,47 @@
             `).join('');
         }
 
-        function selectItem(type, id, item) {
-            if (type === 'user') {
-                selectedUserItem = item;
-            } else {
-                selectedTargetItem = item;
-            }
+        function renderShopGrid(containerId, items) {
+            const grid = document.getElementById(containerId);
+            grid.innerHTML = items.map(item => `
+                <div class="grid-item" onclick="buyItem('${item.id}')">
+                    <span class="g-icon">${item.img}</span>
+                    <span class="g-name">${item.name}</span>
+                    <span class="g-price">$${item.price}</span>
+                </div>
+            `).join('');
+        }
+
+        function selectItem(type, id) {
+            if (type === 'user') selectedUserItem = state.user_inventory.find(i => i.id === id);
+            else selectedTargetItem = state.target_items.find(i => i.id === id);
             updateSelection();
         }
 
         function updateSelection() {
-            // Обновляем выделение в сетке
             document.querySelectorAll('.grid-item').forEach(el => el.classList.remove('selected'));
             if(selectedUserItem) document.getElementById(`user-${selectedUserItem.id}`)?.classList.add('selected');
             if(selectedTargetItem) document.getElementById(`target-${selectedTargetItem.id}`)?.classList.add('selected');
 
-            // Обновляем плашки сверху
             if (selectedUserItem) {
                 document.getElementById('uName').innerText = selectedUserItem.name;
                 document.getElementById('uPrice').innerText = `$${selectedUserItem.price}`;
                 document.getElementById('uIcon').innerText = selectedUserItem.img;
+            } else {
+                document.getElementById('uName').innerText = 'Нет скина';
+                document.getElementById('uPrice').innerText = '$0';
+                document.getElementById('uIcon').innerText = '-';
             }
+
             if (selectedTargetItem) {
                 document.getElementById('tName').innerText = selectedTargetItem.name;
                 document.getElementById('tPrice').innerText = `$${selectedTargetItem.price}`;
                 document.getElementById('tIcon').innerText = selectedTargetItem.img;
             }
 
-            // Пересчитываем визуальный шанс
             if (selectedUserItem && selectedTargetItem) {
                 if (selectedUserItem.price >= selectedTargetItem.price) {
+                    winChance = 0;
                     document.getElementById('chanceVal').innerText = '0%';
                     drawWheel(0, 0);
                     document.getElementById('spinBtn').disabled = true;
@@ -370,10 +228,13 @@
                     drawWheel(0, winChance);
                     document.getElementById('spinBtn').disabled = false;
                 }
+            } else {
+                document.getElementById('spinBtn').disabled = true;
+                drawWheel(0, 0);
             }
         }
 
-        function drawWheel(rotation = 0, chance = 9.5) {
+        function drawWheel(rotation = 0, chance = 0) {
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const radius = canvas.width / 2;
@@ -386,7 +247,7 @@
             ctx.beginPath();
             ctx.moveTo(centerX, centerY);
             ctx.arc(centerX, centerY, radius, startAngle, startAngle + winAngleRad);
-            ctx.fillStyle = '#00c6ff';
+            ctx.fillStyle = '#ff4e50';
             ctx.fill();
 
             ctx.beginPath();
@@ -397,68 +258,100 @@
         }
 
         async function spin() {
+            if (!selectedUserItem || !selectedTargetItem) return;
             const btn = document.getElementById('spinBtn');
             const resultDiv = document.getElementById('result');
             btn.disabled = true;
             resultDiv.innerText = '';
 
-            try {
-                const response = await fetch('/api/upgrade', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        user_item_id: selectedUserItem.id, 
-                        target_item_id: selectedTargetItem.id 
-                    })
-                });
+            const res = await fetch('/api/upgrade', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_item_id: selectedUserItem.id, target_item_id: selectedTargetItem.id })
+            });
 
-                const data = await response.json();
-                if (!data.success) {
-                    resultDiv.style.color = '#ff4757';
-                    resultDiv.innerText = data.detail || 'Ошибка!';
-                    btn.disabled = false;
-                    return;
-                }
+            const data = await res.json();
 
-                const targetAngleDeg = data.stop_angle;
-                const targetAngleRad = (360 - targetAngleDeg) * (Math.PI / 180);
-                const totalRotationRad = (5 * 2 * Math.PI) + targetAngleRad;
+            const targetAngleRad = (360 - data.stop_angle) * (Math.PI / 180);
+            const totalRotationRad = (5 * 2 * Math.PI) + targetAngleRad;
+            const startTime = performance.now();
 
-                const startTime = performance.now();
-                const duration = 4000;
+            function animate(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / 4000, 1);
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                currentRotation = totalRotationRad * easeProgress;
+                drawWheel(currentRotation, data.win_chance);
 
-                function animate(now) {
-                    const elapsed = now - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    state.user_inventory = data.user_inventory;
+                    selectedUserItem = null;
                     
-                    currentRotation = totalRotationRad * easeProgress;
-                    drawWheel(currentRotation, data.win_chance);
-
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
+                    if (data.is_win) {
+                        resultDiv.style.color = '#2ed573';
+                        resultDiv.innerText = 'Успех! Скин получен 🔥';
                     } else {
-                        if (data.is_win) {
-                            resultDiv.style.color = '#2ed573';
-                            resultDiv.innerText = `Успех! +${data.target_item.name} 🔥`;
-                        } else {
-                            resultDiv.style.color = '#ff4757';
-                            resultDiv.innerText = 'Неудача! Скин сгорел 💀';
-                        }
-                        btn.disabled = false;
+                        resultDiv.style.color = '#ff4757';
+                        resultDiv.innerText = 'Неудача! Скин сгорел 💀';
                     }
+                    updateUI();
                 }
+            }
+            requestAnimationFrame(animate);
+        }
 
-                requestAnimationFrame(animate);
-
-            } catch (err) {
-                resultDiv.style.color = '#ff4757';
-                resultDiv.innerText = 'Ошибка соединения!';
-                btn.disabled = false;
+        async function buyItem(id) {
+            const res = await fetch('/api/buy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shop_item_id: id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                state.balance = data.new_balance;
+                state.user_inventory = data.user_inventory;
+                updateUI();
+                alert('Скин куплен и добавлен в инвентарь!');
+            } else {
+                alert(data.detail);
             }
         }
 
-        loadItems();
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            if (tab === 'upgrade') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('page-upgrade').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('page-shop').classList.add('active');
+            }
+        }
+
+        function openDepModal() { document.getElementById('depModal').style.display = 'flex'; }
+        function closeDepModal() { document.getElementById('depModal').style.display = 'none'; }
+        
+        async function makeDeposit() {
+            const amount = parseFloat(document.getElementById('depAmount').value);
+            if (!amount) return;
+            const res = await fetch('/api/deposit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount })
+            });
+            const data = await res.json();
+            if (data.success) {
+                state.balance = data.new_balance;
+                updateUI();
+                closeDepModal();
+            }
+        }
+
+        init();
     </script>
 </body>
 </html>
