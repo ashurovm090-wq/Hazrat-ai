@@ -1,357 +1,268 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Torch Drop</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torch Drop — App</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background: #0d0e12; color: #fff; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 10px 15px 30px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { background: #0f1115; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        
+        .app-container {
+            width: 100%; max-width: 420px; height: 100vh; max-height: 880px;
+            background: #161920; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; position: relative;
+        }
 
-        /* Шапка сайта */
-        header { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 0 15px; }
-        .logo { font-size: 22px; font-weight: 900; letter-spacing: 1.5px; background: linear-gradient(90deg, #ff4e50, #f9d423); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; }
-        .balance-box { display: flex; align-items: center; background: #16181f; border: 1px solid #272a36; border-radius: 10px; padding: 4px 6px 4px 12px; gap: 8px; }
-        .balance-val { font-size: 14px; font-weight: 800; color: #2ed573; }
-        .dep-btn { background: linear-gradient(135deg, #ff4e50, #f9d423); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 800; font-size: 12px; cursor: pointer; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #1c2029; border-bottom: 1px solid #282e3d; }
+        .logo { font-weight: 800; color: #ff5500; font-size: 18px; }
+        .user-panel { display: flex; align-items: center; gap: 12px; }
+        .balance { background: #222733; padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; color: #40c057; }
+        .username { font-size: 13px; color: #a0a5b5; font-weight: 500; }
 
-        /* Вкладки */
-        .tabs { display: flex; width: 100%; max-width: 400px; background: #16181f; border-radius: 10px; padding: 3px; margin-bottom: 15px; }
-        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #717a8a; font-weight: 700; font-size: 13px; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
-        .tab-btn.active { background: linear-gradient(135deg, #ff4e50, #f9d423); color: #000; }
+        .main-content { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 
-        .page { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; }
-        .page.active { display: flex; }
+        .upgrade-section { background: #1c2029; padding: 16px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .slots { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .slot { width: 110px; height: 110px; background: #12141a; border: 2px dashed #282e3d; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; font-size: 11px; padding: 4px; }
+        .slot.active { border-style: solid; border-color: #ff5500; background: #221c1a; }
+        .slot-img { font-size: 32px; }
 
-        /* Карточки Апгрейда */
-        .upgrade-arena { display: flex; justify-content: space-between; width: 100%; gap: 10px; margin-bottom: 10px; }
-        .item-card { background: #16181f; border: 1px solid #272a36; border-radius: 14px; padding: 10px; width: 48%; display: flex; flex-direction: column; align-items: center; }
-        .item-card.target { border-color: rgba(255, 78, 80, 0.4); }
-        .item-card .title { font-size: 10px; color: #717a8a; font-weight: 600; text-transform: uppercase; }
-        .item-card .icon { font-size: 22px; margin: 2px 0; }
-        .item-card .name { font-size: 11px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
-        .item-card .price { font-size: 13px; font-weight: 800; color: #2ed573; background: rgba(46, 213, 115, 0.1); padding: 2px 6px; border-radius: 6px; margin-top: 4px; }
+        .chance-badge { font-size: 20px; font-weight: 800; color: #ffab00; }
+        
+        .btn-upgrade { width: 100%; padding: 12px; background: #ff5500; color: #fff; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-upgrade:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Рулетка */
-        .wheel-wrapper { position: relative; width: 210px; height: 210px; margin: 10px 0; display: flex; align-items: center; justify-content: center; }
-        canvas { width: 210px; height: 210px; border-radius: 50%; }
-        .wheel-center { position: absolute; width: 120px; height: 120px; background: #0d0e12; border-radius: 50%; border: 3px solid #16181f; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
-        .chance-label { font-size: 9px; color: #717a8a; font-weight: 600; text-transform: uppercase; }
-        .chance-value { font-size: 22px; font-weight: 900; color: #ff4e50; }
-        .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 16px solid #ff4e50; z-index: 10; }
+        .section-title { font-size: 14px; color: #717a8a; font-weight: 600; margin-bottom: 8px; }
+        
+        .items-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .item-card { background: #1c2029; border: 1px solid #282e3d; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; }
+        .item-card.selected { border-color: #ff5500; background: #26211f; }
+        .item-card .img { font-size: 24px; margin-bottom: 4px; }
+        .item-card .name { font-size: 10px; text-align: center; color: #a0a5b5; height: 24px; overflow: hidden; }
+        .item-card .price { font-size: 11px; font-weight: bold; margin-top: 4px; color: #ffab00; }
+        .btn-sell { margin-top: 4px; font-size: 9px; background: #e03131; color: #fff; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
 
-        .spin-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg, #ff4e50, #f9d423); color: #000; font-size: 15px; font-weight: 800; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 78, 80, 0.3); }
-        .spin-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        #result { font-size: 13px; font-weight: 800; height: 18px; margin-bottom: 8px; text-transform: uppercase; }
-
-        /* Сетка скинов */
-        .section-title { font-size: 11px; font-weight: 700; color: #717a8a; text-transform: uppercase; margin: 12px 0 6px; width: 100%; }
-        .items-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
-        .grid-item { background: #16181f; border: 1px solid #272a36; border-radius: 8px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
-        .grid-item.selected { border-color: #ff4e50; background: rgba(255, 78, 80, 0.1); }
-        .grid-item .g-icon { font-size: 16px; }
-        .grid-item .g-name { font-size: 8px; font-weight: 600; text-align: center; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
-        .grid-item .g-price { font-size: 9px; font-weight: 800; color: #2ed573; }
-
-        /* Модалка пополнения */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 100; }
-        .modal { background: #16181f; border: 1px solid #272a36; border-radius: 16px; padding: 20px; width: 90%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
-        .modal h2 { font-size: 18px; text-align: center; }
-        .dep-input { padding: 12px; background: #0d0e12; border: 1px solid #272a36; border-radius: 8px; color: #fff; font-size: 16px; text-align: center; }
-        .modal-btns { display: flex; gap: 10px; }
-        .modal-btns button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
-        .confirm-btn { background: #2ed573; color: #000; }
-        .close-btn { background: #ff4757; color: #fff; }
+        /* Модальное окно входа */
+        .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 100; }
+        .modal { background: #1c2029; padding: 24px; border-radius: 12px; width: 80%; display: flex; flex-direction: column; gap: 12px; }
+        .modal input { padding: 10px; border-radius: 6px; border: 1px solid #282e3d; background: #12141a; color: #fff; }
+        .modal button { padding: 10px; background: #ff5500; border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">🔥 Torch Drop</div>
-        <div class="balance-box">
-            <span class="balance-val" id="balanceVal">$0.00</span>
-            <button class="dep-btn" onclick="openDepModal()">+</button>
+<div class="app-container">
+    <div class="header">
+        <div class="logo">🔥 TORCH DROP</div>
+        <div class="user-panel">
+            <span class="username" id="userNameDisplay">...</span>
+            <div class="balance" id="balanceDisplay">$0.00</div>
         </div>
-    </header>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('upgrade')">Апгрейд</button>
-        <button class="tab-btn" onclick="switchTab('shop')">Магазин</button>
     </div>
 
-    <!-- Страница Апгрейда -->
-    <div class="page active" id="page-upgrade">
-        <div class="upgrade-arena">
-            <div class="item-card">
-                <span class="title">Ваш скин</span>
-                <span class="icon" id="uIcon">-</span>
-                <span class="name" id="uName">Выберите скин</span>
-                <span class="price" id="uPrice">$0</span>
+    <div class="main-content">
+        <!-- Секция Апгрейда -->
+        <div class="upgrade-section">
+            <div class="slots">
+                <div class="slot" id="mySlot">
+                    <span>Выбери скин</span>
+                </div>
+                <div class="chance-badge" id="chanceDisplay">0%</div>
+                <div class="slot" id="targetSlot">
+                    <span>Выбери цель</span>
+                </div>
             </div>
-            <div class="item-card target">
-                <span class="title">Цель</span>
-                <span class="icon" id="tIcon">-</span>
-                <span class="name" id="tName">Выберите цель</span>
-                <span class="price" id="tPrice">$0</span>
-            </div>
+            <button class="btn-upgrade" id="btnUpgrade" disabled onclick="runUpgrade()">АПГРЕЙД</button>
         </div>
 
-        <div class="wheel-wrapper">
-            <div class="pointer"></div>
-            <canvas id="wheelCanvas" width="420" height="420"></canvas>
-            <div class="wheel-center">
-                <span class="chance-label">Шанс</span>
-                <span class="chance-value" id="chanceVal">0%</span>
-            </div>
+        <!-- Мой инвентарь -->
+        <div>
+            <div class="section-title">ТВОЙ ИНВЕНТАРЬ</div>
+            <div class="items-grid" id="myInventoryGrid"></div>
         </div>
 
-        <div id="result"></div>
-        <button class="spin-btn" id="spinBtn" onclick="spin()">Апгрейд</button>
-
-        <div class="section-title">1. Выберите ваш скин из инвентаря:</div>
-        <div class="items-grid" id="userGrid"></div>
-
-        <div class="section-title">2. Выберите желаемую цель:</div>
-        <div class="items-grid" id="targetGrid"></div>
+        <!-- Доступные цели -->
+        <div>
+            <div class="section-title">ЦЕЛИ ДЛЯ АПГРЕЙДА</div>
+            <div class="items-grid" id="targetGrid"></div>
+        </div>
     </div>
 
-    <!-- Страница Магазина -->
-    <div class="page" id="page-shop">
-        <div class="section-title">Купить скин в инвентарь:</div>
-        <div class="items-grid" id="shopGrid"></div>
-    </div>
-
-    <!-- Модалка пополнения -->
-    <div class="modal-overlay" id="depModal">
+    <!-- Модалка авторизации -->
+    <div class="modal-overlay" id="authModal">
         <div class="modal">
-            <h2>Пополнение баланса</h2>
-            <input type="number" class="dep-input" id="depAmount" value="100" placeholder="Сумма в $">
-            <div class="modal-btns">
-                <button class="confirm-btn" onclick="makeDeposit()">Пополнить</button>
-                <button class="close-btn" onclick="closeDepModal()">Отмена</button>
-            </div>
+            <h3 style="text-align: center;">Вход в аккаунт</h3>
+            <input type="text" id="loginInput" placeholder="Введите ваш логин...">
+            <button onclick="handleLogin()">Войти / Зарегистрироваться</button>
         </div>
     </div>
+</div>
 
-    <script>
-        const canvas = document.getElementById('wheelCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        let state = { balance: 0, user_inventory: [], target_items: [], shop_items: [] };
-        let selectedUserItem = null;
-        let selectedTargetItem = null;
-        let currentRotation = 0;
-        let winChance = 0;
+<script>
+    let state = {
+        username: "",
+        balance: 0,
+        myInventory: [],
+        targets: [],
+        selectedMyItem: null,
+        selectedTargetItem: null
+    };
 
-        async function init() {
+    async function initApp() {
+        try {
             const res = await fetch('/api/init');
-            state = await res.json();
-            updateUI();
-        }
-
-        function updateUI() {
-            document.getElementById('balanceVal').innerText = `$${state.balance.toFixed(2)}`;
-            
-            if (!selectedUserItem && state.user_inventory.length > 0) selectedUserItem = state.user_inventory[0];
-            if (!selectedTargetItem && state.target_items.length > 0) selectedTargetItem = state.target_items[0];
-
-            renderGrid('userGrid', state.user_inventory, 'user');
-            renderGrid('targetGrid', state.target_items, 'target');
-            renderShopGrid('shopGrid', state.shop_items);
-            
-            updateSelection();
-        }
-
-        function renderGrid(containerId, items, type) {
-            const grid = document.getElementById(containerId);
-            if (items.length === 0) {
-                grid.innerHTML = '<div style="grid-column: span 4; font-size: 11px; color: #717a8a; text-align: center; padding: 10px;">Инвентарь пуст. Купите скин в магазине!</div>';
+            if (res.status === 401) {
+                document.getElementById('authModal').style.display = 'flex';
                 return;
             }
-            grid.innerHTML = items.map(item => `
-                <div class="grid-item" id="${type}-${item.id}" onclick="selectItem('${type}', '${item.id}')">
-                    <span class="g-icon">${item.img}</span>
-                    <span class="g-name">${item.name}</span>
-                    <span class="g-price">$${item.price}</span>
-                </div>
-            `).join('');
+            const data = await res.json();
+            document.getElementById('authModal').style.display = 'none';
+            
+            state.username = data.username;
+            state.balance = data.balance;
+            state.myInventory = data.user_inventory;
+            state.targets = data.target_items;
+
+            render();
+        } catch (e) {
+            console.error("Ошибка загрузки:", e);
+        }
+    }
+
+    async function handleLogin() {
+        const username = document.getElementById('loginInput').value.trim();
+        if (!username) return alert("Введите имя пользователя!");
+
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username })
+        });
+
+        if (res.ok) {
+            initApp();
+        } else {
+            const err = await res.json();
+            alert(err.detail || "Ошибка входа");
+        }
+    }
+
+    function render() {
+        document.getElementById('userNameDisplay').innerText = state.username;
+        document.getElementById('balanceDisplay').innerText = `$${state.balance.toFixed(2)}`;
+
+        // Отрисовка инвентаря
+        const myGrid = document.getElementById('myInventoryGrid');
+        myGrid.innerHTML = state.myInventory.map(item => `
+            <div class="item-card ${state.selectedMyItem?.id === item.id ? 'selected' : ''}" onclick="selectMyItem('${item.id}')">
+                <div class="img">${item.img}</div>
+                <div class="name">${item.name}</div>
+                <div class="price">$${item.price}</div>
+                <button class="btn-sell" onclick="sellItem(event, '${item.id}')">Продать</button>
+            </div>
+        `).join('');
+
+        // Отрисовка целей
+        const targetGrid = document.getElementById('targetGrid');
+        targetGrid.innerHTML = state.targets.map(item => `
+            <div class="item-card ${state.selectedTargetItem?.id === item.id ? 'selected' : ''}" onclick="selectTargetItem('${item.id}')">
+                <div class="img">${item.img}</div>
+                <div class="name">${item.name}</div>
+                <div class="price">$${item.price}</div>
+            </div>
+        `).join('');
+
+        // Обновление слотов и шанса
+        const mySlot = document.getElementById('mySlot');
+        if (state.selectedMyItem) {
+            mySlot.className = "slot active";
+            mySlot.innerHTML = `<div class="slot-img">${state.selectedMyItem.img}</div><div>$${state.selectedMyItem.price}</div>`;
+        } else {
+            mySlot.className = "slot";
+            mySlot.innerHTML = `<span>Выбери скин</span>`;
         }
 
-        function renderShopGrid(containerId, items) {
-            const grid = document.getElementById(containerId);
-            grid.innerHTML = items.map(item => `
-                <div class="grid-item" onclick="buyItem('${item.id}')">
-                    <span class="g-icon">${item.img}</span>
-                    <span class="g-name">${item.name}</span>
-                    <span class="g-price">$${item.price}</span>
-                </div>
-            `).join('');
+        const targetSlot = document.getElementById('targetSlot');
+        if (state.selectedTargetItem) {
+            targetSlot.className = "slot active";
+            targetSlot.innerHTML = `<div class="slot-img">${state.selectedTargetItem.img}</div><div>$${state.selectedTargetItem.price}</div>`;
+        } else {
+            targetSlot.className = "slot";
+            targetSlot.innerHTML = `<span>Выбери цель</span>`;
         }
 
-        function selectItem(type, id) {
-            if (type === 'user') selectedUserItem = state.user_inventory.find(i => i.id === id);
-            else selectedTargetItem = state.target_items.find(i => i.id === id);
-            updateSelection();
-        }
-
-        function updateSelection() {
-            document.querySelectorAll('.grid-item').forEach(el => el.classList.remove('selected'));
-            if(selectedUserItem) document.getElementById(`user-${selectedUserItem.id}`)?.classList.add('selected');
-            if(selectedTargetItem) document.getElementById(`target-${selectedTargetItem.id}`)?.classList.add('selected');
-
-            if (selectedUserItem) {
-                document.getElementById('uName').innerText = selectedUserItem.name;
-                document.getElementById('uPrice').innerText = `$${selectedUserItem.price}`;
-                document.getElementById('uIcon').innerText = selectedUserItem.img;
+        // Шанс
+        const btn = document.getElementById('btnUpgrade');
+        if (state.selectedMyItem && state.selectedTargetItem) {
+            if (state.selectedTargetItem.price <= state.selectedMyItem.price) {
+                document.getElementById('chanceDisplay').innerText = '0%';
+                btn.disabled = true;
             } else {
-                document.getElementById('uName').innerText = 'Нет скина';
-                document.getElementById('uPrice').innerText = '$0';
-                document.getElementById('uIcon').innerText = '-';
+                const chance = ((state.selectedMyItem.price / state.selectedTargetItem.price) * 0.95 * 100).toFixed(1);
+                document.getElementById('chanceDisplay').innerText = `${chance}%`;
+                btn.disabled = false;
             }
-
-            if (selectedTargetItem) {
-                document.getElementById('tName').innerText = selectedTargetItem.name;
-                document.getElementById('tPrice').innerText = `$${selectedTargetItem.price}`;
-                document.getElementById('tIcon').innerText = selectedTargetItem.img;
-            }
-
-            if (selectedUserItem && selectedTargetItem) {
-                if (selectedUserItem.price >= selectedTargetItem.price) {
-                    winChance = 0;
-                    document.getElementById('chanceVal').innerText = '0%';
-                    drawWheel(0, 0);
-                    document.getElementById('spinBtn').disabled = true;
-                } else {
-                    winChance = Math.min(((selectedUserItem.price / selectedTargetItem.price) * 100 * 0.95), 80).toFixed(1);
-                    document.getElementById('chanceVal').innerText = `${winChance}%`;
-                    drawWheel(0, winChance);
-                    document.getElementById('spinBtn').disabled = false;
-                }
-            } else {
-                document.getElementById('spinBtn').disabled = true;
-                drawWheel(0, 0);
-            }
-        }
-
-        function drawWheel(rotation = 0, chance = 0) {
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = canvas.width / 2;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const winAngleRad = (chance / 100) * (2 * Math.PI);
-            const startAngle = -Math.PI / 2 + rotation;
-
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.arc(centerX, centerY, radius, startAngle, startAngle + winAngleRad);
-            ctx.fillStyle = '#ff4e50';
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.arc(centerX, centerY, radius, startAngle + winAngleRad, startAngle + (2 * Math.PI));
-            ctx.fillStyle = '#1b1d26';
-            ctx.fill();
-        }
-
-        async function spin() {
-            if (!selectedUserItem || !selectedTargetItem) return;
-            const btn = document.getElementById('spinBtn');
-            const resultDiv = document.getElementById('result');
+        } else {
+            document.getElementById('chanceDisplay').innerText = '0%';
             btn.disabled = true;
-            resultDiv.innerText = '';
+        }
+    }
 
-            const res = await fetch('/api/upgrade', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_item_id: selectedUserItem.id, target_item_id: selectedTargetItem.id })
-            });
+    function selectMyItem(id) {
+        state.selectedMyItem = state.myInventory.find(i => i.id === id);
+        render();
+    }
 
+    function selectTargetItem(id) {
+        state.selectedTargetItem = state.targets.find(i => i.id === id);
+        render();
+    }
+
+    async function runUpgrade() {
+        if (!state.selectedMyItem || !state.selectedTargetItem) return;
+
+        const res = await fetch('/api/upgrade', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                selected_item_id: state.selectedMyItem.id,
+                target_item_id: state.selectedTargetItem.id
+            })
+        });
+
+        if (res.ok) {
             const data = await res.json();
-
-            const targetAngleRad = (360 - data.stop_angle) * (Math.PI / 180);
-            const totalRotationRad = (5 * 2 * Math.PI) + targetAngleRad;
-            const startTime = performance.now();
-
-            function animate(now) {
-                const elapsed = now - startTime;
-                const progress = Math.min(elapsed / 4000, 1);
-                const easeProgress = 1 - Math.pow(1 - progress, 3);
-                
-                currentRotation = totalRotationRad * easeProgress;
-                drawWheel(currentRotation, data.win_chance);
-
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    state.user_inventory = data.user_inventory;
-                    selectedUserItem = null;
-                    
-                    if (data.is_win) {
-                        resultDiv.style.color = '#2ed573';
-                        resultDiv.innerText = 'Успех! Скин получен 🔥';
-                    } else {
-                        resultDiv.style.color = '#ff4757';
-                        resultDiv.innerText = 'Неудача! Скин сгорел 💀';
-                    }
-                    updateUI();
-                }
-            }
-            requestAnimationFrame(animate);
+            alert(data.win ? '🎉 УСПЕХ! Скин получен!' : '❌ НЕУДАЧА! Скин сгорел.');
+            state.myInventory = data.updated_inventory;
+            state.selectedMyItem = null;
+            state.selectedTargetItem = null;
+            render();
+        } else {
+            const err = await res.json();
+            alert(err.detail);
         }
+    }
 
-        async function buyItem(id) {
-            const res = await fetch('/api/buy', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ shop_item_id: id })
-            });
+    async function sellItem(e, itemId) {
+        e.stopPropagation();
+        const res = await fetch('/api/sell', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ item_id: itemId })
+        });
+
+        if (res.ok) {
             const data = await res.json();
-            if (data.success) {
-                state.balance = data.new_balance;
-                state.user_inventory = data.user_inventory;
-                updateUI();
-                alert('Скин куплен и добавлен в инвентарь!');
-            } else {
-                alert(data.detail);
+            state.balance = data.new_balance;
+            state.myInventory = data.updated_inventory;
+            if (state.selectedMyItem?.id === itemId) {
+                state.selectedMyItem = null;
             }
+            render();
         }
+    }
 
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            if (tab === 'upgrade') {
-                document.querySelectorAll('.tab-btn')[0].classList.add('active');
-                document.getElementById('page-upgrade').classList.add('active');
-            } else {
-                document.querySelectorAll('.tab-btn')[1].classList.add('active');
-                document.getElementById('page-shop').classList.add('active');
-            }
-        }
-
-        function openDepModal() { document.getElementById('depModal').style.display = 'flex'; }
-        function closeDepModal() { document.getElementById('depModal').style.display = 'none'; }
-        
-        async function makeDeposit() {
-            const amount = parseFloat(document.getElementById('depAmount').value);
-            if (!amount) return;
-            const res = await fetch('/api/deposit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount })
-            });
-            const data = await res.json();
-            if (data.success) {
-                state.balance = data.new_balance;
-                updateUI();
-                closeDepModal();
-            }
-        }
-
-        init();
-    </script>
+    initApp();
+</script>
 </body>
 </html>
