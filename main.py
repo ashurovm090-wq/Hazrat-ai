@@ -1,23 +1,43 @@
+import sqlite3
 import random
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Header, Cookie
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="Torch Drop")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+DB_NAME = "database.db"
 
-# Базовый баланс
-USER_BALANCE = 500.0
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    # Таблица пользователей
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY,
+            balance REAL DEFAULT 500.0
+        )
+    """)
+    
+    # Таблица скинов в инвентаре пользователя
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_items (
+            id TEXT PRIMARY KEY,
+            username TEXT,
+            name TEXT,
+            price REAL,
+            img TEXT,
+            FOREIGN KEY (username) REFERENCES users (username)
+        )
+    """)
+    
+    conn.commit()
+    conn.close()
 
-# Магазин дешевых скинов для старта
+init_db()
+
+# Доступные для выбора и апгрейда предметы
 SHOP_ITEMS = [
     {"id": "s1", "name": "P250 | Sand Dune", "price": 10.0, "img": "🔫"},
     {"id": "s2", "name": "Glock-18 | Oxide", "price": 15.0, "img": "🔫"},
@@ -26,13 +46,6 @@ SHOP_ITEMS = [
     {"id": "s5", "name": "AWP | Atheris", "price": 60.0, "img": "🎯"},
 ]
 
-# Инвентарь игрока
-USER_INVENTORY = [
-    {"id": "u1", "name": "P250 | Sand Dune", "price": 10.0, "img": "🔫"},
-    {"id": "u2", "name": "AK-47 | Uncharted", "price": 25.0, "img": "🔫"},
-]
-
-# Доступные цели для апгрейда
 TARGET_ITEMS = [
     {"id": "t1", "name": "AK-47 | Redline", "price": 100.0, "img": "🔥"},
     {"id": "t2", "name": "M4A4 | Neo-Noir", "price": 250.0, "img": "🦄"},
@@ -40,17 +53,25 @@ TARGET_ITEMS = [
     {"id": "t4", "name": "Knife | Doppler", "price": 1200.0, "img": "🔪"},
 ]
 
-HOUSE_EDGE = 0.95
+HOUSE_EDGE = 0.95  # 95% RTP (Комиссия сервиса 5%)
+
+class AuthData(BaseModel):
+    username: str
 
 class UpgradeRequest(BaseModel):
-    user_item_id: str
+    selected_item_id: str
     target_item_id: str
 
-class DepositRequest(BaseModel):
-    amount: float
+class SellRequest(BaseModel):
+    item_id: str
 
-class BuyRequest(BaseModel):
-    shop_item_id: str
+def get_user_inventory(username: str):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, price, img FROM user_items WHERE username = ?", (username,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id": r[0], "name": r[1], "price": r[2], "img": r[3]} for r in rows]
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index():
@@ -60,68 +81,117 @@ async def read_index():
     except FileNotFoundError:
         return "<h1>Файл index.html не найден</h1>"
 
+@app.post("/api/login")
+async def login(data: AuthData):
+    username = data.username.strip()
+    if not username or len(username) < 3:
+        raise HTTPException(status_code=400, detail="Имя пользователя слишком короткое (мин. 3 символа)")
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+
+    if not user:
+        cursor.execute("INSERT INTO users (username, balance) VALUES (?, ?)", (username, 500.0))
+        # Стартовые предметы при первой регистрации
+        cursor.execute("INSERT INTO user_items VALUES (?, ?, ?, ?, ?)", (f"u_{random.randint(10000,99999)}", username, "P250 | Sand Dune", 10.0, "🔫"))
+        cursor.execute("INSERT INTO user_items VALUES (?, ?, ?, ?, ?)", (f"u_{random.randint(10000,99999)}", username, "AK-47 | Uncharted", 25.0, "🔫"))
+        conn.commit()
+
+    conn.close()
+
+    response = JSONResponse(content={"status": "ok", "username": username})
+    response.set_cookie(key="torch_user", value=username, max_age=30*86400)
+    return response
+
 @app.get("/api/init")
-async def get_init():
+async def get_init(torch_user: str = Cookie(default="")):
+    if not torch_user:
+        raise HTTPException(status_code=401, detail="Необходима авторизация")
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT balance FROM users WHERE username = ?", (torch_user,))
+    res = cursor.fetchone()
+    conn.close()
+
+    if not res:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+
     return {
-        "balance": USER_BALANCE,
-        "user_inventory": USER_INVENTORY,
+        "username": torch_user,
+        "balance": res[0],
+        "user_inventory": get_user_inventory(torch_user),
         "target_items": TARGET_ITEMS,
         "shop_items": SHOP_ITEMS
     }
 
-@app.post("/api/deposit")
-async def deposit(req: DepositRequest):
-    global USER_BALANCE
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Некорректная сумма")
-    USER_BALANCE += req.amount
-    return {"success": True, "new_balance": USER_BALANCE}
-
-@app.post("/api/buy")
-async def buy(req: BuyRequest):
-    global USER_BALANCE
-    item = next((i for i in SHOP_ITEMS if i["id"] == req.shop_item_id), None)
-    if not item:
-        raise HTTPException(status_code=400, detail="Товар не найден")
-    if USER_BALANCE < item["price"]:
-        raise HTTPException(status_code=400, detail="Недостаточно баланса")
-
-    USER_BALANCE -= item["price"]
-    new_user_item = {"id": f"u_{random.randint(1000,9999)}", "name": item["name"], "price": item["price"], "img": item["img"]}
-    USER_INVENTORY.append(new_user_item)
-
-    return {"success": True, "new_balance": USER_BALANCE, "user_inventory": USER_INVENTORY}
-
 @app.post("/api/upgrade")
-async def upgrade(req: UpgradeRequest):
-    global USER_BALANCE
-    user_item = next((i for i in USER_INVENTORY if i["id"] == req.user_item_id), None)
-    target_item = next((i for i in TARGET_ITEMS if i["id"] == req.target_item_id), None)
+async def process_upgrade(data: UpgradeRequest, torch_user: str = Cookie(default="")):
+    if not torch_user:
+        raise HTTPException(status_code=401, detail="Авторизуйтесь!")
 
-    if not user_item or not target_item:
-        raise HTTPException(status_code=400, detail="Предмет не найден")
+    inventory = get_user_inventory(torch_user)
+    my_item = next((i for i in inventory if i["id"] == data.selected_item_id), None)
+    target_item = next((i for i in TARGET_ITEMS if i["id"] == data.target_item_id), None)
 
-    win_chance = (user_item["price"] / target_item["price"]) * 100 * HOUSE_EDGE
-    win_chance = round(min(win_chance, 80.0), 2)
+    if not my_item or not target_item:
+        raise HTTPException(status_code=400, detail="Выбран неверный предмет")
 
-    roll = random.uniform(0, 100)
-    is_win = roll <= win_chance
+    if target_item["price"] <= my_item["price"]:
+        raise HTTPException(status_code=400, detail="Цена целевого предмета должна быть выше")
 
-    USER_INVENTORY.remove(user_item)
+    # Расчет вероятности успеха
+    win_chance = (my_item["price"] / target_item["price"]) * HOUSE_EDGE
+    roll = random.random()
+    is_win = roll < win_chance
 
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Списываем исходный предмет
+    cursor.execute("DELETE FROM user_items WHERE id = ? AND username = ?", (my_item["id"], torch_user))
+
+    new_item = None
     if is_win:
-        USER_INVENTORY.append({"id": f"u_{random.randint(1000,9999)}", "name": target_item["name"], "price": target_item["price"], "img": target_item["img"]})
+        new_item_id = f"u_{random.randint(10000,99999)}"
+        cursor.execute("INSERT INTO user_items VALUES (?, ?, ?, ?, ?)", 
+                       (new_item_id, torch_user, target_item["name"], target_item["price"], target_item["img"]))
+        new_item = {"id": new_item_id, "name": target_item["name"], "price": target_item["price"], "img": target_item["img"]}
 
-    winning_angle_max = (win_chance / 100) * 360
-    if is_win:
-        stop_angle = random.uniform(2, max(2, winning_angle_max - 2))
-    else:
-        stop_angle = random.uniform(winning_angle_max + 2, 358)
+    conn.commit()
+    conn.close()
 
     return {
-        "success": True,
-        "is_win": is_win,
-        "win_chance": win_chance,
-        "stop_angle": round(stop_angle, 2),
-        "user_inventory": USER_INVENTORY
+        "win": is_win,
+        "chance_percent": round(win_chance * 100, 2),
+        "new_item": new_item,
+        "updated_inventory": get_user_inventory(torch_user)
+    }
+
+@app.post("/api/sell")
+async def sell_item(data: SellRequest, torch_user: str = Cookie(default="")):
+    if not torch_user:
+        raise HTTPException(status_code=401, detail="Авторизуйтесь!")
+
+    inventory = get_user_inventory(torch_user)
+    item = next((i for i in inventory if i["id"] == data.item_id), None)
+
+    if not item:
+        raise HTTPException(status_code=400, detail="Предмет не найден")
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM user_items WHERE id = ? AND username = ?", (data.item_id, torch_user))
+    cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (item["price"], torch_user))
+    cursor.execute("SELECT balance FROM users WHERE username = ?", (torch_user,))
+    new_balance = cursor.fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "ok",
+        "new_balance": new_balance,
+        "updated_inventory": get_user_inventory(torch_user)
     }
